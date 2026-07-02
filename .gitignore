@@ -1,0 +1,5 @@
+# 忽略备份文件
+*_backup.txt
+*_backup.*
+.DS_Store
+Thumbs.db
