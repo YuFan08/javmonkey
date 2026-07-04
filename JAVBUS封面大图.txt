@@ -13,6 +13,9 @@
 // @include      *javdb.com/*
 // @include      *avmoo.cyou/*
 // @include      *javlibrary.com/*
+// @include      *mgstage.com/*
+// @include      *dmm.co.jp/*
+// @include      *imdb.com/*
 // @include      /^.*(javbus|busfan|fanbus|buscdn|cdnbus|dmmsee|seedmm|busdmm|busjav)\..*$/
 // @include      /^.*(javdb)[0-9]*\..*$/
 // @include      /^.*(avmoo)\..*$/
@@ -52,13 +55,14 @@
 
 (function () {
     'use strict';
-    
+
     // qBittorrent 自动登录配置，若需要静默推送，请填写您的 qB WebUI 账号密码
     const QB_CONFIG = {
         url: "https://qb.chunshi.lol",  // 您的 qB WebUI 地址
         username: "admin",      // 您的 qB 用户名，请修改为您真实的用户名
         password: "131415",      // 您的 qB 密码，请修改为您真实的密码
         category: "Jav",        // 推送时的分类名，下载时会自动分类为 Jav 并在对应目录下创建文件夹
+        tags: "Jav",            // 默认标签，Javbus/MGS/DMM 下载任务会自动标记为 Jav
         savepath: "./Jav"       // 若需指定下载的绝对路径，可在引号内填写（例如：/downloads/Jav ），为空则根据分类由 qB 自动管理
     };
     let statusDefault = {
@@ -328,19 +332,48 @@
 
 
 
+    function normalizeAvid(avid, stripLeadingDigits) {
+        avid = decodeURIComponent(avid || "").trim().toUpperCase();
+        if (stripLeadingDigits) avid = avid.replace(/^\d+/, "");
+        avid = avid.replace(/[^A-Z0-9-]/g, "");
+        return avid.includes("-") ? avid : avid.replace(/^([A-Z]+)(\d+)$/, "$1-$2");
+    }
+
+    function getImdbInfo() {
+        let json = Array.from(document.querySelectorAll('script[type="application/ld+json"]')).map(s => {
+            try { return JSON.parse(s.textContent); } catch (e) { return null; }
+        }).find(Boolean) || {};
+        let title = ($('[data-testid="hero__primary-text"]').first().text() || $('h1').first().text() || document.title.replace(/ - IMDb$/, '')).trim();
+        let year = String(json.datePublished || '').match(/^(\d{4})/)?.[1] || (($('body').text().match(/\b(19|20)\d{2}\b/) || [])[0] || '');
+        let type = json['@type'] === 'TVSeries' ? 'Tv' : 'Movie';
+        let season = Number($('[role="tab"][aria-selected="true"]').text().trim().replace(/^S/i, '')) || 1;
+        let query = type === 'Movie' && year ? `${title} ${year}` : `${title} S${String(season).padStart(2, '0')}`;
+        return { title, year, type, season, query };
+    }
+
     function getDetailAvid() {
         let avid = "";
-        $(".info p").each(function() {
-            let text = $(this).text();
-            if (text.includes("識別碼:") || text.includes("识别码:") || text.includes("ID:")) {
-                avid = $(this).find("span").eq(1).text().trim();
-            }
-        });
+        if (location.host.includes("imdb.com")) {
+            return getImdbInfo().query;
+        }
+        if (location.host.includes("mgstage.com")) {
+            avid = ($("body").text().match(/品番\s*[：:]\s*([A-Za-z0-9_-]+)/) || [])[1] || "";
+        } else if (location.host.includes("dmm.co.jp")) {
+            avid = ($("body").text().match(/品番\s*[：:]\s*([A-Za-z0-9_-]+)/) || [])[1] || "";
+            if (!avid) avid = (location.href.match(/[?&/]cid=([^&/]+)/) || [])[1] || "";
+        } else {
+            $(".info p").each(function() {
+                let text = $(this).text();
+                if (text.includes("識別碼:") || text.includes("识别码:") || text.includes("ID:")) {
+                    avid = $(this).find("span").eq(1).text().trim();
+                }
+            });
+        }
         if (!avid) {
             let parts = location.pathname.split('/');
             avid = parts[parts.length - 1] || parts[parts.length - 2];
         }
-        return avid;
+        return normalizeAvid(avid, location.host.includes("dmm.co.jp"));
     }
 
     function formatBytes(bytes, decimals = 2) {
@@ -364,109 +397,221 @@
         return num;
     }
 
+    function isExtraDetailPage() {
+        return (location.host.includes("mgstage.com") && location.pathname.includes("/product/product_detail/")) ||
+            (location.host.includes("dmm.co.jp") && (location.pathname.includes("/-/detail/") || /[?&/]cid=/.test(location.href))) ||
+            (location.host.includes("imdb.com") && location.pathname.includes("/title/tt"));
+    }
+
+    function findElementByText(text) {
+        let matches = $("body *").filter(function() {
+            let ownText = $(this).contents().filter(function() { return this.nodeType === 3; }).text().trim();
+            return ownText.includes(text);
+        }).get();
+        matches.sort(function(a, b) {
+            let at = $(a).contents().filter(function() { return this.nodeType === 3; }).text().trim().length;
+            let bt = $(b).contents().filter(function() { return this.nodeType === 3; }).text().trim().length;
+            return at - bt;
+        });
+        return $(matches[0]);
+    }
+
+    function findSectionAround(anchor) {
+        if (!anchor.length) return $();
+        let anchorTop = anchor.offset().top;
+        let candidates = anchor.parents().addBack().filter(function() {
+            let box = $(this);
+            if (/^(BODY|HTML)$/.test(this.tagName)) return false;
+            if (box.width() < 600 || box.height() < 40) return false;
+            return Math.abs(box.offset().top - anchorTop) < 120;
+        }).get();
+        candidates.sort(function(a, b) {
+            let ah = $(a).height() > 80 ? 0 : 1;
+            let bh = $(b).height() > 80 ? 0 : 1;
+            if (ah !== bh) return ah - bh;
+            return ($(a).width() * $(a).height()) - ($(b).width() * $(b).height());
+        });
+        return $(candidates[0]);
+    }
+
+    function mountExtraJackettContainer(jackettContainer, tries) {
+        tries = tries || 0;
+        let isMgstage = location.host.includes("mgstage.com");
+        let isDmm = location.host.includes("dmm.co.jp");
+        let isImdb = location.host.includes("imdb.com");
+        let anchor = isMgstage ? findElementByText("商品紹介") : findElementByText("この商品を買った人はこんな商品を買っています");
+        let target = isImdb ? $('[data-testid="atf-wrapper-bg"]').first() : findSectionAround(anchor);
+        let widthTarget = isImdb ? $('main [class*="ipc-page-content-container"]').first() : target;
+        if (!target.length && isMgstage) target = $(".common_detail_cover").next();
+        if (!target.length && isDmm && tries < 20) {
+            setTimeout(function() { mountExtraJackettContainer(jackettContainer, tries + 1); }, 500);
+            return;
+        }
+        if (!target.length) target = $("#center_column, main, article, #mu, #main").first().children().filter(function() { return $(this).width() > 600; }).last();
+        jackettContainer.addClass("jackett-extra-section" + (isImdb ? " jackett-imdb-section" : ""));
+        if (target.length) {
+            let w = isImdb ? Math.max(320, Math.min(window.innerWidth - 300, 1600)) : (widthTarget.length ? widthTarget.outerWidth() : target.outerWidth());
+            if (w) jackettContainer.attr("style", "width:" + w + "px !important; max-width:" + w + "px !important;");
+            if (isImdb) {
+                target.after(jackettContainer.addClass("jackett-site-section jackett-theme-light"));
+            } else {
+                target.before(jackettContainer.addClass("jackett-site-section jackett-theme-light"));
+            }
+        } else {
+            $("body").append(jackettContainer.addClass("jackett-site-section jackett-theme-light"));
+        }
+    }
     function initJackettSearch() {
         let avid = getDetailAvid();
         if (!avid) return;
 
         let jackettContainer = $(`
-            <div id="jackett-search-container" style="margin-top:20px; margin-bottom:20px; width: 100%;">
-                <h4 style="border-bottom: 1px solid #ddd; padding-bottom: 10px; color: #CC0000; font-weight: bold; margin-left: 0; margin-right: 0;">
-                    Jackett 磁力搜索结果
-                    <span id="jackett-loading-status" style="font-size: 14px; font-weight: normal; color: #666; margin-left: 10px;">正在搜索...</span>
-                </h4>
-                <table class="table table-hover" id="jackett-table" style="display:none; background-color: #fff; width: 100%; margin: 0;">
-                    <thead>
-                        <tr style="background-color: #f5f5f5;">
-                            <th style="width: 50%;">磁力名稱</th>
-                            <th style="width: 15%; text-align: center;">檔案大小</th>
-                            <th style="width: 15%; text-align: center;">种子数</th>
-                            <th style="width: 20%; text-align: center;">操作</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    </tbody>
-                </table>
-            </div>
+            <section id="jackett-search-container">
+                <div class="jackett-section-head">
+                    <h3>Jackett 磁力搜索 <span class="jackett-title-code">${avid}</span></h3>
+                    <span id="jackett-loading-status">正在搜索...</span>
+                </div>
+                <div class="jackett-table-wrap">
+                    <table class="table table-hover" id="jackett-table" style="display:none;">
+                        <colgroup>
+                            <col class="jackett-col-name">
+                            <col class="jackett-col-size">
+                            <col class="jackett-col-seeders">
+                            <col class="jackett-col-actions">
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th>磁力名称</th>
+                                <th>大小</th>
+                                <th>种子</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </section>
         `);
-
         if ($("#magnet-table").length > 0) {
             $("#magnet-table").before(jackettContainer);
         } else if ($(".movie").length > 0) {
             $(".movie").after(jackettContainer);
+        } else if (isExtraDetailPage()) {
+            mountExtraJackettContainer(jackettContainer);
         } else {
             $("body").append(jackettContainer);
         }
 
-        let searchUrl = `https://jackett.chunxi.lol/api/v2.0/indexers/all/results?apikey=a4z348fs9gdteuy4ebu2f70aqu6022oj&Query=${encodeURIComponent(avid)}`;
-        
-        GM_xmlhttpRequest({
-            method: "GET",
-            url: searchUrl,
-            onload: function(response) {
-                if (response.status !== 200) {
-                    $("#jackett-loading-status").text("搜索失败，服务器状态码: " + response.status);
-                    return;
-                }
-                try {
-                    let data = JSON.parse(response.responseText);
-                    let results = data.Results || [];
-                    if (results.length === 0) {
-                        $("#jackett-loading-status").text("未找到相关种子");
+        let imdbInfo = location.host.includes("imdb.com") ? getImdbInfo() : null;
+        let qbOptions = imdbInfo ? {
+            category: imdbInfo.type,
+            tags: imdbInfo.type,
+            savepath: imdbInfo.type === 'Tv' ? './Tv' : './Movies'
+        } : {};
+        let searchSeq = 0;
+        let showJackettStatus = text => {
+            if (!$("#jackett-loading-status").length) $(".jackett-section-head").append('<span id="jackett-loading-status"></span>');
+            $("#jackett-loading-status").text(text).show();
+        };
+        let searchJackett = (query, retried) => {
+            let seq = ++searchSeq;
+            $(".jackett-title-code").text(query);
+            let searchUrl = `https://jackett.chunxi.lol/api/v2.0/indexers/all/results?apikey=a4z348fs9gdteuy4ebu2f70aqu6022oj&Query=${encodeURIComponent(query)}`;
+            GM_xmlhttpRequest({
+                method: "GET",
+                url: searchUrl,
+                onload: function(response) {
+                    if (response.status !== 200) {
+                        showJackettStatus("搜索失败，服务器状态码: " + response.status);
                         return;
                     }
-                    
-                    results.sort((a, b) => (b.Seeders || 0) - (a.Seeders || 0));
+                    try {
+                        let data = JSON.parse(response.responseText);
+                        if (seq !== searchSeq) return;
+                        let results = (data.Results || []).filter(item => item.MagnetUri || item.Link);
+                        if (results.length === 0) {
+                            let retryQuery = location.host.includes("mgstage.com") ? query.replace(/^\d+/, "") : query;
+                            if (!retried && retryQuery && retryQuery !== query) {
+                                showJackettStatus("未找到相关种子，正在尝试去除开头数字...");
+                                searchJackett(retryQuery, true);
+                                return;
+                            }
+                            showJackettStatus("未找到相关种子");
+                            return;
+                        }
 
-                    let tbody = $("#jackett-table tbody");
-                    tbody.empty();
+                        results.sort((a, b) => (b.Seeders || 0) - (a.Seeders || 0));
 
-                    results.forEach(item => {
-                        let sizeText = formatBytes(item.Size || 0);
-                        let magnetUrl = item.MagnetUri || item.Link;
-                        let seeders = item.Seeders !== undefined ? item.Seeders : 0;
-                        
-                        let tr = $(`
-                            <tr>
-                                <td style="width: 50%;"><a href="${item.Link}" target="_blank" title="${item.Title}">${item.Title}</a></td>
-                                <td style="text-align: center; vertical-align: middle; width: 15%;">${sizeText}</td>
-                                <td style="text-align: center; vertical-align: middle; font-weight: bold; color: ${seeders > 0 ? 'green' : 'gray'}; width: 15%;">${seeders}</td>
-                                <td style="text-align: center; vertical-align: middle; width: 20%;">
-                                    <button class="btn btn-xs btn-default jackett-copy-btn" style="margin-right: 5px;">复制</button>
-                                    <button class="btn btn-xs btn-primary jackett-qb-btn">下载到qb</button>
-                                </td>
-                            </tr>
-                        `);
-                        tr.find(".jackett-copy-btn").click(function() {
-                            GM_setClipboard(magnetUrl);
-                            showAlert("复制成功");
-                        });
+                        let tbody = $("#jackett-table tbody");
+                        tbody.empty();
 
-                        tr.find(".jackett-qb-btn").click(function() {
-                            let btn = $(this);
-                            btn.text("添加中...").attr("disabled", true);
-                            downloadToQb(magnetUrl).then(() => {
-                                btn.text("已添加").css("background-color", "green").css("border-color", "green");
-                                showAlert("成功添加到 qBittorrent");
-                            }).catch(err => {
-                                btn.text("重试").attr("disabled", false);
-                                showAlert("添加失败: " + err);
+                        results.forEach(item => {
+                            let sizeText = formatBytes(item.Size || 0);
+                            let magnetUrl = item.MagnetUri || item.Link;
+                            let seeders = item.Seeders !== undefined ? item.Seeders : 0;
+
+                            let tr = $(`
+                                <tr>
+                                    <td><a href="${item.Link}" target="_blank" title="${item.Title}">${item.Title}</a></td>
+                                    <td class="jackett-size-cell">${sizeText}</td>
+                                    <td class="jackett-seeders-cell" style="color: ${seeders > 0 ? 'green' : 'gray'};">${seeders}</td>
+                                    <td>
+                                        <div class="jackett-actions">
+                                            <button class="btn btn-xs btn-default jackett-copy-btn">复制</button>
+                                            <button class="btn btn-xs btn-primary jackett-qb-btn">下载到qb</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `);
+                            tr.find(".jackett-copy-btn").click(function() {
+                                GM_setClipboard(magnetUrl);
+                                showAlert("复制成功");
                             });
+
+                            tr.find(".jackett-qb-btn").click(function() {
+                                let btn = $(this);
+                                btn.text("添加中...").attr("disabled", true);
+                                downloadToQb(magnetUrl, false, qbOptions).then(() => {
+                                    btn.text("已添加").css("background-color", "green").css("border-color", "green");
+                                    showAlert("成功添加到 qBittorrent");
+                                }).catch(err => {
+                                    btn.text("重试").attr("disabled", false);
+                                    showAlert("添加失败: " + err);
+                                });
+                            });
+
+                            tbody.append(tr);
                         });
 
-                        tbody.append(tr);
-                    });
+                        $("#jackett-loading-status").remove();
+                        $("#jackett-table").show();
 
-                    $("#jackett-loading-status").hide();
-                    $("#jackett-table").show();
-
-                } catch (e) {
-                    $("#jackett-loading-status").text("数据解析失败: " + e.message);
+                    } catch (e) {
+                        showJackettStatus("数据解析失败: " + e.message);
+                    }
+                },
+                onerror: function(err) {
+                    showJackettStatus("网络错误，无法连接 Jackett");
                 }
-            },
-            onerror: function(err) {
-                $("#jackett-loading-status").text("网络错误，无法连接 Jackett");
-            }
-        });
+            });
+        };
+        searchJackett(avid, false);
+        if (imdbInfo && imdbInfo.type === 'Tv') {
+            let lastSeason = imdbInfo.season;
+            let reloadSeasonSearch = () => setTimeout(function() {
+                let info = getImdbInfo();
+                if (info.season === lastSeason) return;
+                lastSeason = info.season;
+                $("#jackett-table").hide();
+                $("#jackett-table tbody").empty();
+                showJackettStatus("正在搜索...");
+                searchJackett(info.query, false);
+            }, 150);
+            document.addEventListener('click', function(e) {
+                if ($(e.target).closest('[role="tab"]').text().trim().match(/^S\d+$/)) reloadSeasonSearch();
+            }, true);
+            new MutationObserver(reloadSeasonSearch).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['aria-selected'] });
+        }
     }
 
     function loginToQb() {
@@ -495,15 +640,21 @@
         });
     }
 
-    function downloadToQb(torrentUrl, isRetry = false) {
+    function downloadToQb(torrentUrl, isRetry = false, options = {}) {
         return new Promise((resolve, reject) => {
             let qbUrl = QB_CONFIG.url.replace(/\/$/, "");
             let postData = "urls=" + encodeURIComponent(torrentUrl);
-            if (QB_CONFIG.category) {
-                postData += "&category=" + encodeURIComponent(QB_CONFIG.category);
+            let category = options.category || QB_CONFIG.category;
+            let savepath = options.savepath || QB_CONFIG.savepath;
+            let tags = options.tags || QB_CONFIG.tags || "";
+            if (category) {
+                postData += "&category=" + encodeURIComponent(category);
             }
-            if (QB_CONFIG.savepath) {
-                postData += "&savepath=" + encodeURIComponent(QB_CONFIG.savepath);
+            if (savepath) {
+                postData += "&savepath=" + encodeURIComponent(savepath);
+            }
+            if (tags) {
+                postData += "&tags=" + encodeURIComponent(tags);
             }
 
             GM_xmlhttpRequest({
@@ -523,14 +674,14 @@
                         console.log("qB未登录，正在尝试使用配置的账号密码自动登录...");
                         loginToQb().then(() => {
                             // 登录成功后重新发送下载请求
-                            downloadToQb(torrentUrl, true).then(resolve).catch(reject);
+                            downloadToQb(torrentUrl, true, options).then(resolve).catch(reject);
                         }).catch(err => {
                             reject("自动登录失败: " + err);
                         });
                     } else {
                         let firstStatus = res.status;
                         console.warn("qBittorrent 新版 API 失败，状态码: " + res.status + ", 内容: " + res.responseText);
-                        
+
                         GM_xmlhttpRequest({
                             method: "POST",
                             url: qbUrl + "/command/download",
@@ -611,7 +762,6 @@
                         var img_src_arr = /<img .*data-lazy-src="https:\/\/.*pixhost.to\/thumbs\/.*>/.exec(bodyStr);
                         if (img_src_arr) {
                             var src = $(img_src_arr[0]).attr("data-lazy-src").replace('thumbs', 'images').replace('//t', '//img').replace('"', '');
-                            console.log(src);
                             var height = $(window).height();
                             var img_tag = $(`<div name="${avid}${IMG_SUFFIX}" class="pop-up-tag" ><img style="min-height:${height}px;width:100%" src="${src}" /></div>`);
                             var downloadBtn = $(`<span class="download-icon" >${download_Svg}</span>`);
@@ -746,6 +896,18 @@
             init_Style: function(){
                 GM_addStyle(`#menu-div{right:0} #waterfall-zdy div{box-sizing: border-box;}`);
             },
+        },
+        mgstage: {
+            domainReg: /mgstage\.com/i,
+            itemSelector: '#javbus-zdy-no-list'
+        },
+        dmm: {
+            domainReg: /dmm\.co\.jp/i,
+            itemSelector: '#javbus-zdy-no-list'
+        },
+        imdb: {
+            domainReg: /imdb\.com/i,
+            itemSelector: '#javbus-zdy-no-list'
         }
     };
 
@@ -785,6 +947,29 @@
             currentObj.gridSelector = "#waterfall-destroy";
         }
     }
+    function isMgsDmmListPage() {
+        return (location.host.includes("mgstage.com") && location.pathname.includes("/search/cSearch.php")) ||
+            (location.host.includes("dmm.co.jp") && location.pathname.includes("/-/list/"));
+    }
+
+    function initMgsDmmAutoPager() {
+        if (!isMgsDmmListPage()) return;
+        let locked = false;
+        let findNext = () => Array.from(document.querySelectorAll('a[href]')).find(a =>
+            (a.textContent || '').trim() === '次へ' && a.href && a.href !== location.href
+        );
+        document.addEventListener('wheel', function(e) {
+            if (locked || e.deltaY <= 0) return;
+            let doc = document.documentElement;
+            let nearBottom = window.scrollY + window.innerHeight >= Math.max(doc.scrollHeight, document.body.scrollHeight) - 350;
+            if (!nearBottom) return;
+            let next = findNext();
+            if (!next) return;
+            locked = true;
+            location.href = next.href;
+        }, { passive: true });
+    }
+
     function pageInit() {
         for (var key in ConstCode) {
             var domainReg = ConstCode[key].domainReg;
@@ -809,6 +994,7 @@
                 break;
             }
         }
+        if (!currentObj) return;
         let $items = $(currentObj.itemSelector);
         if (currentWeb && $items.length) {
             oldDriverBlock();
@@ -860,7 +1046,6 @@
         }
         async loadNextPage(url){
             this.showStatus('request');
-            console.log(url);
             let respondText = await fetch(url, { credentials: 'same-origin' }).then(respond=>respond.text());
             let $body = $(new DOMParser().parseFromString(respondText, 'text/html'));
             let elems = getItems($body.find(currentObj.itemSelector));
@@ -949,7 +1134,7 @@
         var waterfallWidth = Status.get("waterfallWidth");
         var css_waterfall = `
 /* 自定义一键下载到 QB 按钮的统一样式与 Hover 态完全变色 */
-.jackett-qb-btn, .native-qb-btn {
+.jackett-copy-btn, .jackett-qb-btn, .native-copy-btn, .native-qb-btn {
     background-color: #2080f0 !important;
     background-image: none !important;
     border-color: #2080f0 !important;
@@ -958,12 +1143,12 @@
     text-align: center !important;
     transition: background-color 0.2s !important;
 }
-.jackett-qb-btn:hover, .native-qb-btn:hover {
+.jackett-copy-btn:hover, .jackett-qb-btn:hover, .native-copy-btn:hover, .native-qb-btn:hover {
     background-color: #1060c0 !important;
     border-color: #1060c0 !important;
     color: white !important;
 }
-.jackett-qb-btn:disabled, .native-qb-btn:disabled {
+.jackett-copy-btn:disabled, .jackett-qb-btn:disabled, .native-copy-btn:disabled, .native-qb-btn:disabled {
     background-color: #a0c0f0 !important;
     border-color: #a0c0f0 !important;
     cursor: not-allowed !important;
@@ -979,9 +1164,147 @@
     word-break: break-all !important;
     word-wrap: break-word !important;
 }
-
-
-
+.jackett-site-section {
+    --jackett-bg: #ffffff;
+    --jackett-panel: #f5f7fb;
+    --jackett-line: #d8dee8;
+    --jackett-text: #17202a;
+    --jackett-muted: #667085;
+    --jackett-link: #0b73d9;
+    --jackett-head: #c80024;
+    width: 100% !important;
+    margin: 18px 0 20px !important;
+    padding: 14px !important;
+    box-sizing: border-box !important;
+    border: 1px solid var(--jackett-line) !important;
+    border-radius: 6px !important;
+    background: var(--jackett-bg) !important;
+    color: var(--jackett-text) !important;
+    box-shadow: 0 8px 24px rgba(16,24,40,.10) !important;
+}
+.jackett-site-section.jackett-extra-section {
+    max-width: 100% !important;
+}
+.jackett-site-section.jackett-imdb-section {
+    position: relative !important;
+    z-index: 10 !important;
+    pointer-events: auto !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+.jackett-site-section.jackett-imdb-section,
+.jackett-site-section.jackett-imdb-section * {
+    pointer-events: auto !important;
+}
+.jackett-site-section.jackett-imdb-section .jackett-table-wrap {
+    max-height: 440px !important;
+    overscroll-behavior: contain !important;
+}
+.jackett-section-head {
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+    gap: 6px !important;
+    flex-direction: column !important;
+    margin: 0 0 12px !important;
+    padding: 0 0 10px !important;
+    border-bottom: 1px solid var(--jackett-line) !important;
+}
+.jackett-section-head h3 {
+    margin: 0 !important;
+    color: var(--jackett-head) !important;
+    font-size: 16px !important;
+    line-height: 1.3 !important;
+    font-weight: 700 !important;
+}
+#jackett-loading-status {
+    display: inline-block !important;
+    margin-top: 4px !important;
+    color: var(--jackett-muted) !important;
+    font-size: 12px !important;
+}
+.jackett-title-code {
+    margin-left: 8px !important;
+    color: var(--jackett-text) !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+}
+.jackett-table-wrap {
+    max-height: 360px !important;
+    overflow: auto !important;
+}
+#jackett-table {
+    table-layout: fixed !important;
+    width: 100% !important;
+    margin: 0 !important;
+    border-collapse: collapse !important;
+    background: var(--jackett-bg) !important;
+    color: var(--jackett-text) !important;
+    font-size: 13px !important;
+}
+#jackett-table th,
+#jackett-table td {
+    padding: 8px 7px !important;
+    border-bottom: 1px solid var(--jackett-line) !important;
+    background: transparent !important;
+    color: var(--jackett-text) !important;
+    vertical-align: middle !important;
+}
+#jackett-table thead tr {
+    background: var(--jackett-panel) !important;
+}
+#jackett-table .jackett-col-name { width: 52% !important; }
+#jackett-table .jackett-col-size { width: 10% !important; }
+#jackett-table .jackett-col-seeders { width: 8% !important; }
+#jackett-table .jackett-col-actions { width: 30% !important; }
+#jackett-table th:nth-child(1), #jackett-table td:nth-child(1) { text-align: left !important; }
+#jackett-table th:nth-child(2), #jackett-table td:nth-child(2),
+#jackett-table th:nth-child(3), #jackett-table td:nth-child(3),
+#jackett-table th:nth-child(4), #jackett-table td:nth-child(4) { text-align: center !important; }
+#jackett-table a {
+    color: var(--jackett-link) !important;
+}
+#jackett-table td:first-child {
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+}
+.jackett-size-cell,
+.jackett-seeders-cell {
+    font-weight: 700 !important;
+    white-space: nowrap !important;
+}
+.jackett-actions {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    white-space: nowrap !important;
+}
+.jackett-copy-btn,
+.jackett-qb-btn,
+.native-copy-btn,
+.native-qb-btn {
+    height: 30px !important;
+    line-height: 28px !important;
+    padding: 0 10px !important;
+    font-family: inherit !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+}
+.jackett-copy-btn,
+.native-copy-btn {
+    border-radius: 4px !important;
+    width: 64px !important;
+}
+.jackett-qb-btn,
+.native-qb-btn {
+    border-radius: 4px !important;
+    width: 90px !important;
+}
+@media (max-width: 900px) {
+    .jackett-section-head { align-items: flex-start !important; flex-direction: column !important; }
+    .jackett-table-wrap { max-height: 300px !important; }
+}
 ${currentObj.widthSelector}{
     width:${waterfallWidth}%;
     margin:0 ${waterfallWidth>100?(100-waterfallWidth)/2+'%':'auto'};
@@ -1210,10 +1533,13 @@ span.svg-loading {
         GM_addStyle(css_waterfall);
     }
     pageInit();
+    initMgsDmmAutoPager();
 
     // 详情页 Jackett 搜索及 QB 下载一键操作
     jQuery(document).ready(function($) {
-        if (location.host.includes("javbus") && ($(".bigImage").length > 0 || $(".info").length > 0 || location.pathname.match(/\/([a-zA-Z0-9_-]+)$/))) {
+        let isJavbusDetail = location.host.includes("javbus") && ($(".bigImage").length > 0 || $(".info").length > 0 || location.pathname.match(/\/([a-zA-Z0-9_-]+)$/));
+        let isExtraDetail = isExtraDetailPage();
+        if (isJavbusDetail || isExtraDetail) {
             let exclude = ['/actresses', 'favor', 'search', 'genre', 'star', 'uncensored/genre', 'uncensored/star', 'western'];
             let isExclude = false;
             for (let p of exclude) {
@@ -1223,9 +1549,9 @@ span.svg-loading {
                 }
             }
             if (!isExclude) {
-                console.log("JAVBUS 大图脚本检测到处于详情页，开始初始化 Jackett 磁力功能...");
                 addStyle(); // 注入大图脚本所用的全局 CSS 样式
                 initJackettSearch();
+                if (!isJavbusDetail) return;
 
                 // 异步磁力行加载检测、大小排序与 QB 下载注入
                 let noNewRowsCount = 0;
@@ -1236,12 +1562,12 @@ span.svg-loading {
                         let headerTr = table.find("tr:first");
                         if (headerTr.length > 0 && !headerTr.hasClass("processed-qb-header")) {
                             headerTr.addClass("processed-qb-header");
-                            
+
                             let cells = headerTr.find("td, th");
                             cells.eq(0).css("width", "50%"); // 磁力名稱列
                             cells.eq(1).css("width", "15%").css("text-align", "center"); // 檔案大小列
                             cells.eq(2).css("width", "15%").css("text-align", "center"); // 分享日期列
-                            
+
                             let lastCell = headerTr.find("td:last, th:last");
                             if (lastCell.text().trim() !== "操作") {
                                 if (lastCell.prop("tagName") === "TH") {
@@ -1264,7 +1590,7 @@ span.svg-loading {
                             // 3. 有新行时对所有数据行按大小降序排序
                             let rows = table.find("tr").get();
                             let dataRows = rows.filter(row => $(row).find("a[href^='magnet:']").length > 0);
-                            
+
                             dataRows.sort((a, b) => {
                                 let sizeA = parseSize($(a).find("td").eq(1).text());
                                 let sizeB = parseSize($(b).find("td").eq(1).text());
@@ -1283,7 +1609,7 @@ span.svg-loading {
                                 let tr = $(row);
                                 if (tr.hasClass("processed-qb-row")) return;
                                 tr.addClass("processed-qb-row");
-                                
+
                                 // 强力锁定数据行每一列 td 的百分比宽度以实现精确对齐
                                 let tds = tr.find("td");
                                 tds.eq(0).css("width", "50%");
@@ -1292,7 +1618,7 @@ span.svg-loading {
 
                                 let magnetUrl = tr.find("a[href^='magnet:']").attr("href");
                                 let td = $('<td style="text-align: center; vertical-align: middle; white-space: nowrap; width: 20%;"></td>');
-                                
+
                                 // 复制按钮
                                 let copyButton = $('<button class="btn btn-xs btn-default native-copy-btn" style="margin-right: 5px;">复制</button>');
                                 copyButton.click(function(e) {
@@ -1300,7 +1626,7 @@ span.svg-loading {
                                     GM_setClipboard(magnetUrl);
                                     showAlert("复制成功");
                                 });
-                                
+
                                 // 下载到qb按钮
                                 let qbButton = $('<button class="btn btn-xs btn-primary native-qb-btn">下载到qb</button>');
                                 qbButton.click(function(e) {
@@ -1315,7 +1641,7 @@ span.svg-loading {
                                         showAlert("添加失败: " + err);
                                     });
                                 });
-                                
+
                                 td.append(copyButton).append(qbButton);
                                 tr.append(td);
                             });
@@ -1325,7 +1651,6 @@ span.svg-loading {
                                 noNewRowsCount++;
                                 if (noNewRowsCount >= 5) {
                                     clearInterval(nativeTableTimer);
-                                    console.log("JAVBUS 大图脚本：磁力列表已全部加载完毕并处理完成，轮询定时器已销毁。");
                                 }
                             }
                         }
