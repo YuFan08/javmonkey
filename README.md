@@ -1,13 +1,13 @@
 # JAVBUS 封面大图 (JAVBUS Larger Thumbnails)
 
-这是一个功能强大的油猴（Tampermonkey）脚本，旨在优化 JAVBUS、JAVDB、AVMOO、JAVLIBRARY、MGStage、DMM/FANZA 和 IMDb 等网站的浏览与下载体验。
+这是一个功能强大的油猴（Tampermonkey）脚本，旨在优化 JAVBUS、JAVDB、AVMOO、JAVLIBRARY、MGStage、DMM/FANZA 和 IMDb 等网站的浏览、搜索与下载体验。
 
 ## 🌟 主要功能
 
 - **封面高清源图替换**：自动将列表页的缩略图替换为高清原图。
 - **瀑布流排版**：支持自适应多列瀑布流展示，提供无缝滚动体验，且支持鼠标滚轮自动翻页。
-- **详情页 Jackett 磁力集成**：自动在 JAVBUS、MGStage、DMM/FANZA 和 IMDb 详情页请求 Jackett 接口，搜索并以表格化降序展示可用磁力。
-- **原生磁力智能优化**：对原生的磁力表格进行文件大小降序排序，自动注入操作按钮。
+- **详情页 Jackett 磁力集成**：自动在 JAVBUS、MGStage、DMM/FANZA 和 IMDb 详情页请求 Jackett 接口，支持结果筛选、排序，并以表格化方式展示可用磁力。
+- **原生磁力智能优化**：对原生的磁力表格进行文件大小降序排序，自动注入操作按钮，并对表格布局做了对齐优化。
 - **绝对垂直对齐**：通过锁定 DOM 的各列百分比宽度以及物理布局对齐，使得 Jackett 搜索结果和自带搜索结果的表头及操作按钮完美纵向对齐。
 - **qBittorrent 一键静默推送**：支持将磁力链接一键推送到 qBittorrent，JAVBUS/MGStage/DMM 默认使用分类和标签 `Jav`，IMDb Movie 使用 `Movie` 分类/标签与 `./Movies` 路径，IMDb TV 使用 `Tv` 分类/标签与 `./Tv` 路径。
 - **多种实用小工具**：一键复制番号/标题、一键下载封面、查看/下载来自 blogjav.net 的高清视频截图等。

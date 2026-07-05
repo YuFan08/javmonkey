@@ -69,7 +69,6 @@
         autoPage: false,
         copyBtn :true,
         toolBar: true,
-        avInfo:true,
         halfImg:false,
         fullTitle:false,
         waterfallWidth:100,
@@ -77,7 +76,6 @@
         columnNumHalf:4
     };
     const IMG_SUFFIX = "-screenshot-tag";
-    const AVINFO_SUFFIX = "-avInfo-tag";
     const blogjavSelector= "h2.entry-title>a";
     const fullImgCSS=`width: 100%!important;height:100%!important;`;
     const halfImgCSS=`position: relative;left: -112%;width: 212% !important;height: 100% !important;max-width: 212%;`;
@@ -85,7 +83,6 @@
     const copy_Svg = `<svg xmlns="http://www.w3.org/2000/svg" fill="currentColor"  width="16" height="16" viewBox="0 0 16 16"><path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v13.5a.5.5 0 0 1-.777.416L8 13.101l-5.223 2.815A.5.5 0 0 1 2 15.5V2zm2-1a1 1 0 0 0-1 1v12.566l4.723-2.482a.5.5 0 0 1 .554 0L13 14.566V2a1 1 0 0 0-1-1H4z"/></svg>`;
     const download_Svg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" class="tool-svg" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1 8a7 7 0 1 0 14 0A7 7 0 0 0 1 8zm15 0A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8.5 4.5a.5.5 0 0 0-1 0v5.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V4.5z"/></svg>`;
     const picture_Svg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"  class="tool-svg" viewBox="0 0 16 16"><path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/><path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2h-12zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1h12z"/></svg>`;
-    const magnet_Svg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"  class="tool-svg" x="0px" y="0px" viewBox="0 0 1000 1000" ><g><g transform="translate(0.000000,460.000000) scale(0.100000,-0.100000)"><path d="M4171.6,3994c-183.9-13.4-515.3-67.1-706.9-113c-770.2-187.7-1448.4-563.3-2021.2-1118.8c-707-685.9-1130.3-1494.4-1299-2481c-59.4-358.3-59.4-1002,0-1360.2c157.1-923.4,546-1705.1,1172.5-2354.6c695.4-722.3,1534.6-1159.1,2548.1-1325.7c174.4-28.7,388.9-34.5,1643.8-40.2l1440.7-7.7v1302.8v1302.8l-1354.5,7.6c-1207,5.7-1369.8,9.6-1480.9,40.2c-448.3,116.9-785.5,335.3-1036.5,666.7c-252.9,339.1-364,666.7-364,1088.2s111.1,749.1,364,1088.2c241.4,318,595.8,551.8,1000.1,659.1c157.1,40.2,191.6,42.1,1517.3,47.9l1354.5,7.7v1302.8v1300.9l-1344.9-3.8C4863.3,4001.6,4219.5,3997.8,4171.6,3994z"/><path d="M7620.1,2704.6V1401.8h1139.9H9900v1302.8v1302.8H8760.1H7620.1V2704.6z"/><path d="M7620.1-3502.7v-1302.8h1139.9H9900v1302.8v1302.8H8760.1H7620.1V-3502.7z"/></g></g></svg>`;
 
     const LOCALE = {
         zh: {
@@ -93,15 +90,12 @@
             menu_autoPage: '鼠标滚轮翻页',
             menu_copyBtn :'复制图标',
             menu_toolBar: '功能图标',
-            menu_avInfo:'弹窗中的演员和样品图',
             menu_halfImg:'竖图模式',
             menu_fullTitle:'标题全显',
             menu_columnNum:'列',
-            copyButton:'复制',
             copySuccess:'复制成功',
             getAvImg_norespond:'blogjav.net网站暂时无法响应',
             getAvImg_none:'未搜索到',
-            tool_magnetTip:'磁力',
             tool_downloadTip:'下载封面',
             tool_pictureTip:'视频截图(blogjav.net)',
             scrollerPlugin_end:'完'
@@ -111,15 +105,12 @@
             menu_autoPage:'turn pages by mouse wheel',
             menu_copyBtn:'copy icon',
             menu_toolBar:'tools icon',
-            menu_avInfo:'actors and sample images in pop-ups',
             menu_halfImg:'Vertical image mode',
             menu_fullTitle:'Full Title',
             menu_columnNum:'columns',
-            copyButton:'Copy',
             copySuccess:'Copy successful',
             getAvImg_norespond:'blogjav.net is temporarily unable to respond',
             getAvImg_none:'Not found',
-            tool_magnetTip:'Magnet',
             tool_downloadTip:'Download cover',
             tool_pictureTip:'Video screenshot from blogjav.net',
             scrollerPlugin_end:'End'
@@ -148,6 +139,36 @@
         }}).delay(3000).fadeOut();
     }
 
+    function sanitizeFilename(name) {
+        return String(name || "cover").replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 160) || "cover";
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+    }
+
+    function downloadCover(url, name) {
+        if (!url) {
+            showAlert("封面地址为空");
+            return;
+        }
+        let ext = (url.match(/\.(png|webp|jpe?g)(?=[?#]|$)/i) || [".jpg"])[0];
+        let filename = sanitizeFilename(name).replace(/\.(png|webp|jpe?g)$/i, "") + ext;
+        try {
+            GM_download({
+                url: url,
+                name: filename,
+                saveAs: false,
+                onerror: function() {
+                    showAlert("下载失败，已打开原图");
+                    window.open(url, "_blank");
+                }
+            });
+        } catch (e) {
+            showAlert("下载失败，已打开原图");
+            window.open(url, "_blank");
+        }
+    }
     let tool_Func = {
         autoPage: function () {
             if(scroller){
@@ -176,7 +197,6 @@
         fullTitle : function(){
             $("#waterfall-zdy a[name='av-title']").toggleClass("titleNowrap");
         },
-        avInfo: function () { },
         columnNum: function (columnNum) {
             GM_addStyle('#waterfall-zdy .item-b{ width: ' + 100 / columnNum + '%;}');
         },
@@ -249,28 +269,6 @@
             me.scrollBarWidth = me.getScrollBarWidth();
             GM_addStyle('.scrollBarHide{ padding-right: ' + me.scrollBarWidth + 'px;overflow:hidden;}');
             $('body').append(me.element);
-            if(currentWeb=="javbus"){
-                me.element.magnificPopup({
-                    delegate: 'a.sample-box-zdy:visible',
-                    type: 'image',
-                    closeOnContentClick: false,
-                    closeBtnInside: false,
-                    mainClass: 'mfp-with-zoom mfp-img-mobile',
-                    image: {
-                        verticalFit: true
-                    },
-                    gallery: {
-                        enabled: true
-                    },
-                    zoom: {
-                        enabled: true,
-                        duration: 300,
-                        opener: function (element) {
-                            return element.find('img');
-                        }
-                    }
-                });
-            }
         }
         append(elem){
             if(!this.element){ this.init();}
@@ -296,9 +294,6 @@
         $menu.append(creatCheckbox("copyBtn", lang.menu_copyBtn));
         $menu.append(creatCheckbox("toolBar", lang.menu_toolBar));
         $menu.append(creatCheckbox("halfImg", lang.menu_halfImg,Status.halfImg_block));
-        if (["javbus","javdb"].includes(currentWeb)) {
-            $menu.append(creatCheckbox("avInfo", lang.menu_avInfo));
-        }
         $menu.append(creatCheckbox("fullTitle", lang.menu_fullTitle));
         $menu.append(creatRange("columnNum", lang.menu_columnNum, columnNum, 8));
         $menu.append(creatRange("waterfallWidth", '%', Status.get("waterfallWidth"), currentObj.maxWidth?currentObj.maxWidth:100));
@@ -334,9 +329,27 @@
 
     function normalizeAvid(avid, stripLeadingDigits) {
         avid = decodeURIComponent(avid || "").trim().toUpperCase();
-        if (stripLeadingDigits) avid = avid.replace(/^\d+/, "");
+        if (stripLeadingDigits) {
+            avid = avid.replace(/^[A-Z]+_\d+/, "").replace(/BOD$/, "").replace(/^\d+/, "");
+        }
         avid = avid.replace(/[^A-Z0-9-]/g, "");
+        if (stripLeadingDigits) {
+            avid = avid.replace(/^([A-Z]+)-?(\d+)$/, (_, prefix, digits) => {
+                const trimmed = digits.replace(/^0+/, "") || "0";
+                return `${prefix}-${trimmed.length <= 3 ? trimmed.padStart(3, "0") : trimmed}`;
+            });
+        }
         return avid.includes("-") ? avid : avid.replace(/^([A-Z]+)(\d+)$/, "$1-$2");
+    }
+
+    function cleanImdbSearchTitle(title) {
+        return title.split(/[：:]/)[0].replace(/[^\p{L}\p{N}]+/gu, " ").replace(/\s+/g, " ").trim();
+    }
+
+    function getImdbSeasonTabs() {
+        return $('[role="tab"]').filter(function() {
+            return $(this).text().trim().match(/^S\d+$/);
+        });
     }
 
     function getImdbInfo() {
@@ -344,11 +357,13 @@
             try { return JSON.parse(s.textContent); } catch (e) { return null; }
         }).find(Boolean) || {};
         let title = ($('[data-testid="hero__primary-text"]').first().text() || $('h1').first().text() || document.title.replace(/ - IMDb$/, '')).trim();
-        let year = String(json.datePublished || '').match(/^(\d{4})/)?.[1] || (($('body').text().match(/\b(19|20)\d{2}\b/) || [])[0] || '');
         let type = json['@type'] === 'TVSeries' ? 'Tv' : 'Movie';
-        let season = Number($('[role="tab"][aria-selected="true"]').text().trim().replace(/^S/i, '')) || 1;
-        let query = type === 'Movie' && year ? `${title} ${year}` : `${title} S${String(season).padStart(2, '0')}`;
-        return { title, year, type, season, query };
+        let seasonTabs = getImdbSeasonTabs();
+        let hasSeasons = seasonTabs.length > 0;
+        let season = Number(seasonTabs.filter('[aria-selected="true"]').first().text().trim().replace(/^S/i, '')) || 1;
+        let searchTitle = cleanImdbSearchTitle(title);
+        let query = type === 'Tv' && hasSeasons ? `${searchTitle} S${String(season).padStart(2, '0')}` : searchTitle;
+        return { type, season, hasSeasons, query };
     }
 
     function getDetailAvid() {
@@ -481,9 +496,9 @@
                         </colgroup>
                         <thead>
                             <tr>
-                                <th>磁力名称</th>
-                                <th>大小</th>
-                                <th>种子</th>
+                                <th class="jackett-sort jackett-name-head" data-sort="title">磁力名称 <input id="jackett-filter" type="search" placeholder="过滤" autocomplete="off"></th>
+                                <th class="jackett-sort" data-sort="size">大小</th>
+                                <th class="jackett-sort" data-sort="seeders">种子</th>
                                 <th>操作</th>
                             </tr>
                         </thead>
@@ -493,6 +508,7 @@
             </section>
         `);
         if ($("#magnet-table").length > 0) {
+            jackettContainer.addClass("jackett-javbus-section");
             $("#magnet-table").before(jackettContainer);
         } else if ($(".movie").length > 0) {
             $(".movie").after(jackettContainer);
@@ -509,10 +525,78 @@
             savepath: imdbInfo.type === 'Tv' ? './Tv' : './Movies'
         } : {};
         let searchSeq = 0;
+        let jackettResults = [];
+        let jackettSort = { key: "seeders", dir: -1 };
+        let jackettFilter = "";
         let showJackettStatus = text => {
             if (!$("#jackett-loading-status").length) $(".jackett-section-head").append('<span id="jackett-loading-status"></span>');
             $("#jackett-loading-status").text(text).show();
         };
+        let renderJackettResults = () => {
+            let tbody = $("#jackett-table tbody");
+            tbody.empty();
+
+            jackettResults.filter(item => String(item.Title || "").toLowerCase().includes(jackettFilter)).sort((a, b) => {
+                if (jackettSort.key === "title") return String(a.Title || "").localeCompare(String(b.Title || "")) * jackettSort.dir;
+                let av = jackettSort.key === "size" ? (a.Size || 0) : (a.Seeders || 0);
+                let bv = jackettSort.key === "size" ? (b.Size || 0) : (b.Seeders || 0);
+                return (av - bv) * jackettSort.dir;
+            }).forEach(item => {
+                let sizeText = formatBytes(item.Size || 0);
+                let magnetUrl = item.MagnetUri || item.Link;
+                let seeders = item.Seeders !== undefined ? item.Seeders : 0;
+
+                let itemTitle = escapeHtml(item.Title);
+                let itemLink = escapeHtml(item.Link);
+                let tr = $(`
+                    <tr>
+                        <td><a href="${itemLink}" target="_blank" title="${itemTitle}">${itemTitle}</a></td>
+                        <td class="jackett-size-cell">${sizeText}</td>
+                        <td class="jackett-seeders-cell" style="color: ${seeders > 0 ? 'green' : 'gray'};">${seeders}</td>
+                        <td>
+                            <div class="jackett-actions">
+                                <button class="btn btn-xs btn-default jackett-copy-btn">复制</button>
+                                <button class="btn btn-xs btn-primary jackett-qb-btn">下载到qb</button>
+                            </div>
+                        </td>
+                    </tr>
+                `);
+                tr.find(".jackett-copy-btn").click(function() {
+                    GM_setClipboard(magnetUrl);
+                    showAlert("复制成功");
+                });
+
+                tr.find(".jackett-qb-btn").click(function() {
+                    let btn = $(this);
+                    btn.text("添加中...").attr("disabled", true);
+                    downloadToQb(magnetUrl, false, qbOptions).then(() => {
+                        btn.text("已添加").css("background-color", "green").css("border-color", "green");
+                        showAlert("成功添加到 qBittorrent");
+                    }).catch(err => {
+                        btn.text("重试").attr("disabled", false);
+                        showAlert("添加失败: " + err);
+                    });
+                });
+
+                tbody.append(tr);
+            });
+
+            $("#jackett-table").show();
+        };
+        $("#jackett-table").on("click", ".jackett-sort", function() {
+            let key = $(this).data("sort");
+            jackettSort.dir = jackettSort.key === key ? -jackettSort.dir : (key === "title" ? 1 : -1);
+            jackettSort.key = key;
+            renderJackettResults();
+        });
+        $("#jackett-table").on("input", "#jackett-filter", function(e) {
+            e.stopPropagation();
+            jackettFilter = this.value.trim().toLowerCase();
+            renderJackettResults();
+        });
+        $("#jackett-table").on("click", "#jackett-filter", function(e) {
+            e.stopPropagation();
+        });
         let searchJackett = (query, retried) => {
             let seq = ++searchSeq;
             $(".jackett-title-code").text(query);
@@ -540,51 +624,9 @@
                             return;
                         }
 
-                        results.sort((a, b) => (b.Seeders || 0) - (a.Seeders || 0));
-
-                        let tbody = $("#jackett-table tbody");
-                        tbody.empty();
-
-                        results.forEach(item => {
-                            let sizeText = formatBytes(item.Size || 0);
-                            let magnetUrl = item.MagnetUri || item.Link;
-                            let seeders = item.Seeders !== undefined ? item.Seeders : 0;
-
-                            let tr = $(`
-                                <tr>
-                                    <td><a href="${item.Link}" target="_blank" title="${item.Title}">${item.Title}</a></td>
-                                    <td class="jackett-size-cell">${sizeText}</td>
-                                    <td class="jackett-seeders-cell" style="color: ${seeders > 0 ? 'green' : 'gray'};">${seeders}</td>
-                                    <td>
-                                        <div class="jackett-actions">
-                                            <button class="btn btn-xs btn-default jackett-copy-btn">复制</button>
-                                            <button class="btn btn-xs btn-primary jackett-qb-btn">下载到qb</button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            `);
-                            tr.find(".jackett-copy-btn").click(function() {
-                                GM_setClipboard(magnetUrl);
-                                showAlert("复制成功");
-                            });
-
-                            tr.find(".jackett-qb-btn").click(function() {
-                                let btn = $(this);
-                                btn.text("添加中...").attr("disabled", true);
-                                downloadToQb(magnetUrl, false, qbOptions).then(() => {
-                                    btn.text("已添加").css("background-color", "green").css("border-color", "green");
-                                    showAlert("成功添加到 qBittorrent");
-                                }).catch(err => {
-                                    btn.text("重试").attr("disabled", false);
-                                    showAlert("添加失败: " + err);
-                                });
-                            });
-
-                            tbody.append(tr);
-                        });
-
+                        jackettResults = results;
                         $("#jackett-loading-status").remove();
-                        $("#jackett-table").show();
+                        renderJackettResults();
 
                     } catch (e) {
                         showJackettStatus("数据解析失败: " + e.message);
@@ -596,11 +638,11 @@
             });
         };
         searchJackett(avid, false);
-        if (imdbInfo && imdbInfo.type === 'Tv') {
+        if (imdbInfo && imdbInfo.type === 'Tv' && imdbInfo.hasSeasons) {
             let lastSeason = imdbInfo.season;
             let reloadSeasonSearch = () => setTimeout(function() {
                 let info = getImdbInfo();
-                if (info.season === lastSeason) return;
+                if (!info.hasSeasons || info.season === lastSeason) return;
                 lastSeason = info.season;
                 $("#jackett-table").hide();
                 $("#jackett-table tbody").empty();
@@ -712,7 +754,7 @@
     }
 
     function showBigImg(avid,elem) {
-        let $selector = $(`.pop-up-tag[name='${avid}${IMG_SUFFIX}']`);
+        let $selector = $(".pop-up-tag").filter(function() { return $(this).attr("name") === avid + IMG_SUFFIX; });
         if ($selector.length > 0) {
             $selector.show();
             myModal.show();
@@ -726,7 +768,7 @@
         $(elem).addClass("svg-loading");
         GM_xmlhttpRequest({
             method: "GET",
-            url: 'http://blogjav.net/?s=' + avid,
+            url: 'http://blogjav.net/?s=' + encodeURIComponent(avid),
             onload: function (result) {
                 if (result.status !== 200) {
                     showAlert(lang.getAvImg_norespond);
@@ -763,10 +805,11 @@
                         if (img_src_arr) {
                             var src = $(img_src_arr[0]).attr("data-lazy-src").replace('thumbs', 'images').replace('//t', '//img').replace('"', '');
                             var height = $(window).height();
-                            var img_tag = $(`<div name="${avid}${IMG_SUFFIX}" class="pop-up-tag" ><img style="min-height:${height}px;width:100%" src="${src}" /></div>`);
+                            var img_tag = $(`<div name="${escapeHtml(avid + IMG_SUFFIX)}" class="pop-up-tag" ><img style="min-height:${height}px;width:100%" src="${escapeHtml(src)}" /></div>`);
                             var downloadBtn = $(`<span class="download-icon" >${download_Svg}</span>`);
                             downloadBtn.click(function () {
-                                GM_download(src, avid + ".jpg");
+                                downloadCover(src, avid);
+                                return false;
                             });
                             $(img_tag).prepend(downloadBtn);
                             myModal.append(img_tag);
@@ -1092,7 +1135,8 @@
             return false;
         });
         $elems.find(".func-div span[name='download']").click(function () {
-            GM_download($(this).attr("src"), $(this).attr("src-title")+".jpg");
+            downloadCover($(this).attr("src"), $(this).attr("src-title"));
+            return false;
         });
         $elems.find(".func-div span[name='picture']").click(function () {
             showBigImg($(this).attr("AVID"),this);
@@ -1105,22 +1149,27 @@
             return "";
         }
         var AvItem = parseFunc(tag);
+        var href = escapeHtml(AvItem.href);
+        var src = escapeHtml(AvItem.src);
+        var title = escapeHtml(AvItem.title);
+        var avid = escapeHtml(AvItem.AVID);
+        var date = escapeHtml(AvItem.date);
         return `<div class="item-b">
                     <div class="movie-box-b">
                     <div class="photo-frame-b">
-                        <a  href="${AvItem.href}" target="_blank"><img style="${imgStyle}" class="lazy minHeight-200"  data-src="${AvItem.src}" ></a>
+                        <a  href="${href}" target="_blank"><img style="${imgStyle}" class="lazy minHeight-200"  data-src="${src}" ></a>
                     </div>
                     <div class="photo-info-b">
-                        <a name="av-title" href="${AvItem.href}" target="_blank" title="${AvItem.title}" class="titleNowrap"><span class="svg-span copy-svg" name="copy">${copy_Svg}</span> <span>${AvItem.title}</span></a>
+                        <a name="av-title" href="${href}" target="_blank" title="${title}" class="titleNowrap"><span class="svg-span copy-svg" name="copy">${copy_Svg}</span> <span>${title}</span></a>
                         <div class="info-bottom">
                           <div class="info-bottom-one">
-                              <a  href="${AvItem.href}" target="_blank"><span class="svg-span copy-svg"  name="copy">${copy_Svg}</span><date name="avid">${AvItem.AVID}</date>${AvItem.date?` / ${AvItem.date}`:""}</a>
+                              <a  href="${href}" target="_blank"><span class="svg-span copy-svg"  name="copy">${copy_Svg}</span><date name="avid">${avid}</date>${date?` / ${date}`:""}</a>
                           </div>
                           <div class="info-bottom-two">
-                            <div class="item-tag">${AvItem.itemTag}</div>
+                            <div class="item-tag">${AvItem.itemTag || ""}</div>
                             <div class="func-div">
-                            <span name="download" class="svg-span" title="${lang.tool_downloadTip}" src="${AvItem.src}" src-title="${AvItem.AVID} ${AvItem.title}">${download_Svg}</span>
-                            <span name="picture" class="svg-span" title="${lang.tool_pictureTip}" AVID="${AvItem.AVID}" >${picture_Svg}</span>
+                            <span name="download" class="svg-span" title="${lang.tool_downloadTip}" src="${src}" src-title="${avid} ${title}">${download_Svg}</span>
+                            <span name="picture" class="svg-span" title="${lang.tool_pictureTip}" AVID="${avid}" >${picture_Svg}</span>
                            </div>
                          </div>
                        </div>
@@ -1139,7 +1188,6 @@
     background-image: none !important;
     border-color: #2080f0 !important;
     color: white !important;
-    width: 80px !important;
     text-align: center !important;
     transition: background-color 0.2s !important;
 }
@@ -1231,7 +1279,9 @@
 }
 .jackett-table-wrap {
     max-height: 360px !important;
-    overflow: auto !important;
+    overflow-y: scroll !important;
+    overflow-x: hidden !important;
+    scrollbar-gutter: stable !important;
 }
 #jackett-table {
     table-layout: fixed !important;
@@ -1250,6 +1300,35 @@
     color: var(--jackett-text) !important;
     vertical-align: middle !important;
 }
+#jackett-table th.jackett-sort {
+    cursor: pointer !important;
+    user-select: none !important;
+}
+#jackett-filter {
+    width: 120px !important;
+    height: 28px !important;
+    margin-left: 10px !important;
+    padding: 0 10px !important;
+    box-sizing: border-box !important;
+    border: 1px solid color-mix(in srgb, var(--jackett-line) 78%, var(--jackett-bg)) !important;
+    border-radius: 6px !important;
+    background: color-mix(in srgb, var(--jackett-bg) 86%, var(--jackett-panel)) !important;
+    box-shadow: inset 0 1px 2px rgba(16,24,40,.06) !important;
+    color: var(--jackett-text) !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    line-height: 26px !important;
+    outline: none !important;
+    vertical-align: middle !important;
+}
+#jackett-filter::placeholder {
+    color: color-mix(in srgb, var(--jackett-muted) 78%, var(--jackett-bg)) !important;
+}
+#jackett-filter:focus {
+    border-color: color-mix(in srgb, var(--jackett-link) 60%, var(--jackett-line)) !important;
+    background: var(--jackett-bg) !important;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--jackett-link) 14%, transparent), inset 0 1px 2px rgba(16,24,40,.05) !important;
+}
 #jackett-table thead tr {
     background: var(--jackett-panel) !important;
 }
@@ -1257,6 +1336,21 @@
 #jackett-table .jackett-col-size { width: 10% !important; }
 #jackett-table .jackett-col-seeders { width: 8% !important; }
 #jackett-table .jackett-col-actions { width: 30% !important; }
+.jackett-javbus-section #jackett-table .jackett-col-name { width: 50% !important; }
+.jackett-javbus-section #jackett-table .jackett-col-size { width: 15% !important; }
+.jackett-javbus-section #jackett-table .jackett-col-seeders { width: 15% !important; }
+.jackett-javbus-section #jackett-table .jackett-col-actions { width: 20% !important; }
+.jackett-javbus-section .jackett-table-wrap,
+.native-magnet-wrap {
+    max-height: 360px !important;
+    overflow-y: scroll !important;
+    overflow-x: hidden !important;
+    scrollbar-gutter: stable !important;
+}
+.jackett-javbus-section #jackett-table,
+.native-magnet-wrap #magnet-table {
+    width: 100% !important;
+}
 #jackett-table th:nth-child(1), #jackett-table td:nth-child(1) { text-align: left !important; }
 #jackett-table th:nth-child(2), #jackett-table td:nth-child(2),
 #jackett-table th:nth-child(3), #jackett-table td:nth-child(3),
@@ -1305,11 +1399,11 @@
     .jackett-section-head { align-items: flex-start !important; flex-direction: column !important; }
     .jackett-table-wrap { max-height: 300px !important; }
 }
-${currentObj.widthSelector}{
+${currentObj.widthSelector ? `${currentObj.widthSelector}{
     width:${waterfallWidth}%;
     margin:0 ${waterfallWidth>100?(100-waterfallWidth)/2+'%':'auto'};
     transition:.5s ;
-}
+}` : ""}
 #waterfall-zdy{
     display:flex;
     flex-direction:row;
@@ -1407,42 +1501,6 @@ ${currentObj.widthSelector}{
 #modal-div .pop-up-tag {
     border-radius: 8px;
     overflow: hidden
-}
-#modal-div .sample-box-zdy,.avatar-box-zdy {
-    display: inline-block;
-    border-radius: 8px;
-    background-color: #fff;
-    overflow: hidden;
-    margin: 5px;
-    width: 140px
-}
-#modal-div .sample-box-zdy .photo-frame {
-    overflow: hidden;
-    margin: 10px
-}
-#modal-div .sample-box-zdy img {
-    height: 90px
-}
-#modal-div .avatar-box-zdy .photo-frame {
-    overflow: hidden;
-    height: 120px;
-    margin: 10px
-}
-#modal-div .avatar-box-zdy img {
-    height: 120px
-}
-#modal-div .avatar-box-zdy span {
-    font-weight: bold;
-    text-align: center;
-    word-wrap: break-word;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 5px;
-    line-height: 22px;
-    color: #333;
-    background-color: #fafafa;
-    border-top: 1px solid #f2f2f2
 }
 svg.tool-svg {
     fill: currentColor;
@@ -1558,6 +1616,9 @@ span.svg-loading {
                 let nativeTableTimer = setInterval(function() {
                     let table = $("#magnet-table");
                     if (table.length > 0) {
+                        if (!table.parent().hasClass("native-magnet-wrap")) {
+                            table.wrap('<div class="native-magnet-wrap"></div>');
+                        }
                         // 1. 处理表头行，追加 "操作" 栏目名并强制设定每列宽度以与 Jackett 绝对对齐（55% / 12% / 13% / 20%）
                         let headerTr = table.find("tr:first");
                         if (headerTr.length > 0 && !headerTr.hasClass("processed-qb-header")) {
