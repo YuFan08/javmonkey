@@ -490,6 +490,7 @@
                     <table class="table table-hover" id="jackett-table" style="display:none;">
                         <colgroup>
                             <col class="jackett-col-name">
+                            <col class="jackett-col-indexer">
                             <col class="jackett-col-size">
                             <col class="jackett-col-seeders">
                             <col class="jackett-col-actions">
@@ -497,6 +498,7 @@
                         <thead>
                             <tr>
                                 <th class="jackett-sort jackett-name-head" data-sort="title">磁力名称 <input id="jackett-filter" type="search" placeholder="过滤" autocomplete="off"></th>
+                                <th class="jackett-sort" data-sort="indexer">Indexer</th>
                                 <th class="jackett-sort" data-sort="size">大小</th>
                                 <th class="jackett-sort" data-sort="seeders">种子</th>
                                 <th>操作</th>
@@ -532,12 +534,16 @@
             if (!$("#jackett-loading-status").length) $(".jackett-section-head").append('<span id="jackett-loading-status"></span>');
             $("#jackett-loading-status").text(text).show();
         };
+        function getJackettIndexer(item) {
+            return item.Tracker || item.Indexer || item.TrackerId || item.IndexerId || "-";
+        }
         let renderJackettResults = () => {
             let tbody = $("#jackett-table tbody");
             tbody.empty();
 
             jackettResults.filter(item => String(item.Title || "").toLowerCase().includes(jackettFilter)).sort((a, b) => {
                 if (jackettSort.key === "title") return String(a.Title || "").localeCompare(String(b.Title || "")) * jackettSort.dir;
+                if (jackettSort.key === "indexer") return String(getJackettIndexer(a)).localeCompare(String(getJackettIndexer(b))) * jackettSort.dir;
                 let av = jackettSort.key === "size" ? (a.Size || 0) : (a.Seeders || 0);
                 let bv = jackettSort.key === "size" ? (b.Size || 0) : (b.Seeders || 0);
                 return (av - bv) * jackettSort.dir;
@@ -545,15 +551,17 @@
                 let sizeText = formatBytes(item.Size || 0);
                 let magnetUrl = item.MagnetUri || item.Link;
                 let seeders = item.Seeders !== undefined ? item.Seeders : 0;
+                let indexer = escapeHtml(getJackettIndexer(item));
 
                 let itemTitle = escapeHtml(item.Title);
                 let itemLink = escapeHtml(item.Link);
                 let tr = $(`
                     <tr>
                         <td><a href="${itemLink}" target="_blank" title="${itemTitle}">${itemTitle}</a></td>
+                        <td class="jackett-indexer-cell" title="${indexer}">${indexer}</td>
                         <td class="jackett-size-cell">${sizeText}</td>
                         <td class="jackett-seeders-cell" style="color: ${seeders > 0 ? 'green' : 'gray'};">${seeders}</td>
-                        <td>
+                        <td class="jackett-actions-cell">
                             <div class="jackett-actions">
                                 <button class="btn btn-xs btn-default jackett-copy-btn">复制</button>
                                 <button class="btn btn-xs btn-primary jackett-qb-btn">下载到qb</button>
@@ -585,7 +593,7 @@
         };
         $("#jackett-table").on("click", ".jackett-sort", function() {
             let key = $(this).data("sort");
-            jackettSort.dir = jackettSort.key === key ? -jackettSort.dir : (key === "title" ? 1 : -1);
+            jackettSort.dir = jackettSort.key === key ? -jackettSort.dir : ((key === "title" || key === "indexer") ? 1 : -1);
             jackettSort.key = key;
             renderJackettResults();
         });
@@ -1332,11 +1340,13 @@
 #jackett-table thead tr {
     background: var(--jackett-panel) !important;
 }
-#jackett-table .jackett-col-name { width: 52% !important; }
+#jackett-table .jackett-col-name { width: 42% !important; }
+#jackett-table .jackett-col-indexer { width: 12% !important; }
 #jackett-table .jackett-col-size { width: 10% !important; }
 #jackett-table .jackett-col-seeders { width: 8% !important; }
-#jackett-table .jackett-col-actions { width: 30% !important; }
-.jackett-javbus-section #jackett-table .jackett-col-name { width: 50% !important; }
+#jackett-table .jackett-col-actions { width: 28% !important; }
+.jackett-javbus-section #jackett-table .jackett-col-name { width: 38% !important; }
+.jackett-javbus-section #jackett-table .jackett-col-indexer { width: 12% !important; }
 .jackett-javbus-section #jackett-table .jackett-col-size { width: 15% !important; }
 .jackett-javbus-section #jackett-table .jackett-col-seeders { width: 15% !important; }
 .jackett-javbus-section #jackett-table .jackett-col-actions { width: 20% !important; }
@@ -1354,7 +1364,8 @@
 #jackett-table th:nth-child(1), #jackett-table td:nth-child(1) { text-align: left !important; }
 #jackett-table th:nth-child(2), #jackett-table td:nth-child(2),
 #jackett-table th:nth-child(3), #jackett-table td:nth-child(3),
-#jackett-table th:nth-child(4), #jackett-table td:nth-child(4) { text-align: center !important; }
+#jackett-table th:nth-child(4), #jackett-table td:nth-child(4),
+#jackett-table th:nth-child(5), #jackett-table td:nth-child(5) { text-align: center !important; }
 #jackett-table a {
     color: var(--jackett-link) !important;
 }
@@ -1366,6 +1377,9 @@
 .jackett-seeders-cell {
     font-weight: 700 !important;
     white-space: nowrap !important;
+}
+.jackett-actions-cell {
+    text-align: center !important;
 }
 .jackett-actions {
     display: flex !important;
