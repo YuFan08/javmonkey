@@ -1595,7 +1595,7 @@ span.svg-loading {
 
     // 详情页 Jackett 搜索及 QB 下载一键操作
     jQuery(document).ready(function($) {
-        let isJavbusDetail = location.host.includes("javbus") && ($(".bigImage").length > 0 || $(".info").length > 0 || location.pathname.match(/\/([a-zA-Z0-9_-]+)$/));
+        let isJavbusDetail = location.host.includes("javbus") && ($(".bigImage").length > 0 || $(".info").length > 0);
         let isExtraDetail = isExtraDetailPage();
         if (isJavbusDetail || isExtraDetail) {
             let exclude = ['/actresses', 'favor', 'search', 'genre', 'star', 'uncensored/genre', 'uncensored/star', 'western'];
