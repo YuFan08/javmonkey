@@ -32,26 +32,6 @@
 // @grant        GM_setClipboard
 // @connect *
 
-// 2021-09-03 匹配javdb更多网址 例如javdb30
-// 2021-08-18 调整blogjav视频截图获取方法
-// 2021-06-03 修复javdb磁力弹窗预告片播放bug；番号变成可点击
-// 2021-06-01 修复多列布局下 图片样式失效的问题
-// 2021-05-31 JavDb添加磁力功能;解决已点击链接颜色失效问题;对大于标准宽高比的图片进行缩放;
-// 2021-05-06 适配javlibrary;添加标题全显样式控制;自动翻页开关无需刷新页面;删除高清图标的显示控制
-// 2021-04-04 适配JAVDB;点击图片弹出新窗口;标题默认显示一行;调整样式;增加英文显示
-// 2021-03-09 恢复高清字幕图标的显示
-// 2021-02-06 新增图片懒加载插件；重调样式；优化按钮效果，切换样式不刷新页面；磁力界面新增演员表样品图显示；
-// 2021-01-18 适配AVMOO网站;无码页面屏蔽竖图模式;调整域名匹配规则
-// 2021-01-01 新增宽度调整功能;
-// 2020-12-29 解决半图模式下 竖图显示不全的问题;
-// 2020-10-16 解决功能开关取默认值为undefined的bug
-// 2020-10-16 解决和"JAV老司机"同时运行时样式冲突问题，需关闭老司机的瀑布流
-// 2020-10-14 收藏界面只匹配影片；下载图片文件名添加标题；新增复制番号、标题功能；视频截图文件下载；封面显示半图；增加样式开关
-// 2020-09-20 收藏界面的适配
-// 2020-08-27 适配更多界面
-// 2020-08-26 修复查询结果为1个时，item宽度为100%的问题
-// 2020-08-26 添加瀑布流
-// 2020-08-24 第一版：封面大图、下载封面、查看视频截图
 // ==/UserScript==
 
 (function () {
@@ -137,7 +117,7 @@
         $alert.show({start:function(){
             $(this).css({'margin-top': -$(this).height() / 2 });
             $(this).css({'margin-left': -$(this).width() / 2 });
-        }}).delay(3000).fadeOut();
+        }}).delay(3000).fadeOut(function() { $(this).remove(); });
     }
 
     function sanitizeFilename(name) {
@@ -556,7 +536,7 @@
                 let indexer = escapeHtml(getJackettIndexer(item));
 
                 let itemTitle = escapeHtml(item.Title);
-                let itemLink = escapeHtml(item.Link);
+                let itemLink = escapeHtml(item.Link || item.Guid || "");
                 let tr = $(`
                     <tr>
                         <td><a href="${itemLink}" target="_blank" title="${itemTitle}">${itemTitle}</a></td>
@@ -740,7 +720,6 @@
                         resolve();
                     } else if ((res.status === 403 || res.status === 401) && !isRetry) {
                         // 未登录，尝试静默登录
-                        console.log("qB未登录，正在尝试使用配置的账号密码自动登录...");
                         loginToQb().then(() => {
                             // 登录成功后重新发送下载请求
                             downloadToQb(torrentUrl, true, options).then(resolve).catch(reject);
@@ -749,7 +728,6 @@
                         });
                     } else {
                         let firstStatus = res.status;
-                        console.warn("qBittorrent 新版 API 失败，状态码: " + res.status + ", 内容: " + res.responseText);
 
                         GM_xmlhttpRequest({
                             method: "POST",
@@ -781,7 +759,7 @@
     }
 
     function open115Login() {
-        window.open("https://115.com/?mode=login", "_blank", "noopener");
+        window.open("https://115.com/?mode=wangpan", "_blank", "noopener");
     }
 
     function is115LoginError(data) {
@@ -852,19 +830,11 @@
         return match ? decodeJackettUrl(match[1].trim()) : "";
     }
 
-    function requestJackettRedirect(pageUrl) {
-        let details = { method: "GET", url: pageUrl, redirect: "manual" };
-        if (typeof GM !== "undefined" && GM.xmlHttpRequest) {
-            return GM.xmlHttpRequest(details);
-        }
+    function requestJackett(pageUrl, options = {}) {
+        let details = Object.assign({ method: "GET", url: pageUrl }, options);
+        if (typeof GM !== "undefined" && GM.xmlHttpRequest) return GM.xmlHttpRequest(details);
         return new Promise((resolve, reject) => {
             GM_xmlhttpRequest(Object.assign({}, details, { onload: resolve, onerror: reject }));
-        });
-    }
-
-    function requestJackettPage(pageUrl) {
-        return new Promise((resolve, reject) => {
-            GM_xmlhttpRequest({ method: "GET", url: pageUrl, onload: resolve, onerror: reject });
         });
     }
 
@@ -873,7 +843,7 @@
         if (direct) return Promise.resolve(direct);
         let pageUrl = decodeJackettUrl(item.Link || item.Guid);
         if (!/^https?:/i.test(pageUrl)) return Promise.reject("找不到可用的 Jackett 下载链接");
-        return requestJackettRedirect(pageUrl).then(res => {
+        return requestJackett(pageUrl, { redirect: "manual" }).then(res => {
             let redirectUrl = getJackettRedirectUrl(res.responseHeaders);
             if (/^magnet:/i.test(redirectUrl)) return redirectUrl;
             let finalUrl = decodeJackettUrl(res.finalUrl || redirectUrl || pageUrl);
@@ -885,7 +855,7 @@
         }).catch(err => {
             let detailUrl = decodeJackettUrl(item.Guid);
             if (!/^https?:/i.test(detailUrl)) return Promise.reject(typeof err === "string" ? err : "二次提取 Jackett 链接失败");
-            return requestJackettPage(detailUrl).then(res => {
+            return requestJackett(detailUrl).then(res => {
                 let found = extractJackettDownloadUrlFromText(res.responseText, detailUrl);
                 if (found) return found;
                 throw typeof err === "string" ? err : "二次提取 Jackett 链接失败";

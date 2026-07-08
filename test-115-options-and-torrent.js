@@ -16,22 +16,24 @@ assert(source.includes("复制失败"), "Copy should report Jackett resolve fail
 assert(source.includes("downloadToQb(jackettRawUrl"), "qB should not depend on 115-only URL resolving");
 assert(!source.includes("downloadUrl => downloadToQb"), "qB must not fail when 115 URL resolving fails");
 assert(source.includes("function extractJackettDownloadUrlFromText"), "Jackett detail pages should be scanned for magnet/torrent links");
-assert(source.includes("function requestJackettPage"), "Jackett resolver should fetch source detail pages as fallback");
-assert(source.includes("requestJackettPage(detailUrl)"), "Jackett resolver should fallback to item.Guid detail pages");
+assert(source.includes("requestJackett(detailUrl)"), "Jackett resolver should fallback to item.Guid detail pages");
+assert(!source.includes("function requestJackettPage"), "Jackett page fetch should reuse the common request wrapper");
+assert(!source.includes("function requestJackettRedirect"), "Jackett redirect fetch should reuse the common request wrapper");
 assert(source.includes("function getJackettRedirectUrl"), "Jackett /dl redirects should expose Location magnet links");
 assert(source.includes("location:"), "Jackett redirect Location header should be parsed");
 assert(source.includes('redirect: "manual"'), "Jackett redirect resolving must not auto-follow magnet Location");
 assert(source.includes("// @grant        GM.xmlHttpRequest"), "Modern GM.xmlHttpRequest should be granted for reliable manual redirects");
-assert(source.includes("function requestJackettRedirect"), "Jackett redirect resolving should use a dedicated request wrapper");
+assert(source.includes("function requestJackett"), "Jackett resolving should use one request wrapper");
 assert(source.includes("GM.xmlHttpRequest"), "Jackett redirect resolving should prefer modern GM.xmlHttpRequest");
 assert(source.includes("item.Guid"), "Jackett Guid should be checked as a possible torrent/detail URL");
 assert(source.includes("t=download"), "Jackett/Torznab download endpoints should be accepted as torrent links");
 assert(source.includes("downloadTo115(downloadUrl"), "115 Jackett button should use the resolved download URL");
+assert(source.includes("let itemLink = escapeHtml(item.Link || item.Guid || \"\");"), "Jackett row links should fallback to Guid instead of undefined");
 assert(source.includes("wp_path_id="), "115 request should include target directory");
 assert(source.includes("make115Savepath"), "115 downloads should go into a per-torrent folder");
 assert(source.includes("115下载"), "115 button label should be 115下载");
 assert(source.includes('type="button"'), "Injected buttons should not submit host page forms");
-assert(source.includes('window.open("https://115.com/?mode=login"'), "115 login failures should open the login page");
+assert(source.includes('window.open("https://115.com/?mode=wangpan"'), "115 login failures should open the netdisk page after login");
 assert(source.includes("找不到可给 115 使用的 magnet/torrent"), "115 should report unsupported torrent rows clearly");
 assert(source.includes("flex: 1 1 0"), "Action buttons should use equal compact widths");
 assert(source.includes("display: inline-flex !important"), "Action button text should be centered with flex");
@@ -39,4 +41,8 @@ assert(source.includes("align-items: center !important"), "Action button text sh
 assert(source.includes("justify-content: center !important"), "Action button text should be horizontally centered");
 assert(source.includes("#16a34a"), "Download action buttons should be green");
 assert(source.includes("gap: 8px"), "Action buttons should have visible spacing");
+assert(source.includes("fadeOut(function"), "Temporary alerts should remove their DOM node after fading out");
 assert(!source.includes("errcode === 911"), "115 error 911 must not be treated as login globally");
+
+assert(!source.includes("console.log"), "Script should not leave noisy debug logs");
+assert(!source.includes("console.warn"), "Script should not leave noisy debug warnings");
