@@ -25,6 +25,7 @@
 
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
+// @grant        GM.xmlHttpRequest
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_download
@@ -526,6 +527,7 @@
             tags: imdbInfo.type,
             savepath: imdbInfo.type === 'Tv' ? './Tv' : './Movies'
         } : {};
+        let pan115Options = get115Options(imdbInfo);
         let searchSeq = 0;
         let jackettResults = [];
         let jackettSort = { key: "seeders", dir: -1 };
@@ -549,7 +551,7 @@
                 return (av - bv) * jackettSort.dir;
             }).forEach(item => {
                 let sizeText = formatBytes(item.Size || 0);
-                let magnetUrl = item.MagnetUri || item.Link;
+                let jackettRawUrl = item.MagnetUri || item.Link;
                 let seeders = item.Seeders !== undefined ? item.Seeders : 0;
                 let indexer = escapeHtml(getJackettIndexer(item));
 
@@ -563,23 +565,40 @@
                         <td class="jackett-seeders-cell" style="color: ${seeders > 0 ? 'green' : 'gray'};">${seeders}</td>
                         <td class="jackett-actions-cell">
                             <div class="jackett-actions">
-                                <button class="btn btn-xs btn-default jackett-copy-btn">复制</button>
-                                <button class="btn btn-xs btn-primary jackett-qb-btn">下载到qb</button>
+                                <button type="button" class="btn btn-xs btn-default jackett-copy-btn">复制</button>
+                                <button type="button" class="btn btn-xs btn-primary jackett-qb-btn">下载到qb</button>
+                                <button type="button" class="btn btn-xs btn-primary jackett-115-btn">115下载</button>
                             </div>
                         </td>
                     </tr>
                 `);
                 tr.find(".jackett-copy-btn").click(function() {
-                    GM_setClipboard(magnetUrl);
-                    showAlert("复制成功");
+                    resolveJackettDownloadUrl(item).then(downloadUrl => {
+                        GM_setClipboard(downloadUrl);
+                        showAlert("复制成功");
+                    }).catch(err => showAlert("复制失败: " + err));
                 });
 
                 tr.find(".jackett-qb-btn").click(function() {
                     let btn = $(this);
                     btn.text("添加中...").attr("disabled", true);
-                    downloadToQb(magnetUrl, false, qbOptions).then(() => {
+                    downloadToQb(jackettRawUrl, false, qbOptions).then(() => {
                         btn.text("已添加").css("background-color", "green").css("border-color", "green");
                         showAlert("成功添加到 qBittorrent");
+                    }).catch(err => {
+                        btn.text("重试").attr("disabled", false);
+                        showAlert("添加失败: " + err);
+                    });
+                });
+
+                tr.find(".jackett-115-btn").click(function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    let btn = $(this);
+                    btn.text("添加中...").attr("disabled", true);
+                    resolveJackettDownloadUrl(item).then(downloadUrl => downloadTo115(downloadUrl, pan115Options, item.Title)).then(() => {
+                        btn.text("已添加").css("background-color", "green").css("border-color", "green");
+                        showAlert("成功添加到 115 网盘");
                     }).catch(err => {
                         btn.text("重试").attr("disabled", false);
                         showAlert("添加失败: " + err);
@@ -620,7 +639,7 @@
                     try {
                         let data = JSON.parse(response.responseText);
                         if (seq !== searchSeq) return;
-                        let results = (data.Results || []).filter(item => item.MagnetUri || item.Link);
+                        let results = (data.Results || []).filter(item => item.MagnetUri || item.InfoHash || item.Link || item.Guid);
                         if (results.length === 0) {
                             let retryQuery = location.host.includes("mgstage.com") ? query.replace(/^\d+/, "") : query;
                             if (!retried && retryQuery && retryQuery !== query) {
@@ -761,6 +780,166 @@
         });
     }
 
+    function open115Login() {
+        window.open("https://115.com/?mode=login", "_blank", "noopener");
+    }
+
+    function is115LoginError(data) {
+        let msg = String(data?.error_msg || data?.msg || "");
+        return data?.errcode === 10008 || msg.includes("登录") || msg.includes("未登录");
+    }
+
+    function get115Options(imdbInfo) {
+        if (imdbInfo) {
+            return { baseSavepath: imdbInfo.type === "Tv" ? "Video/TV" : "Video/Movie" };
+        }
+        return { baseSavepath: "Video/Jav" };
+    }
+
+    function get115OfflineSign() {
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: "GET",
+                url: "https://115.com/?ct=offline&ac=space",
+                withCredentials: true,
+                onload: function(res) {
+                    try {
+                        let data = JSON.parse(res.responseText);
+                        if (res.status === 200 && data.sign && data.time) {
+                            resolve(data);
+                        } else {
+                            open115Login();
+                            reject("请先登录 115 后重试");
+                        }
+                    } catch (e) {
+                        open115Login();
+                            reject("请先登录 115 后重试");
+                    }
+                },
+                onerror: function() {
+                    reject("网络错误，无法连接 115");
+                }
+            });
+        });
+    }
+
+    function decodeJackettUrl(url) {
+        return String(url || "").replace(/&amp;/g, "&");
+    }
+
+    function isJackettTorrentUrl(url) {
+        let value = decodeJackettUrl(url);
+        return /^magnet:/i.test(value) || (/^https?:/i.test(value) && (/\.torrent(?:[?#]|$)/i.test(value) || /[?&]t=download(?:[&#]|$)/i.test(value) || /\/download(?:[/?#]|$)/i.test(value)));
+    }
+
+    function get115DownloadUrl(item) {
+        if (item.MagnetUri) return decodeJackettUrl(item.MagnetUri);
+        if (item.InfoHash) return "magnet:?xt=urn:btih:" + item.InfoHash;
+        return [item.Link, item.Guid].map(decodeJackettUrl).find(isJackettTorrentUrl) || "";
+    }
+
+    function extractJackettDownloadUrlFromText(text, baseUrl) {
+        let html = decodeJackettUrl(text);
+        let magnet = html.match(/magnet:\?xt=urn:btih:[^"'<>\s]+/i);
+        if (magnet) return magnet[0];
+        let torrent = html.match(/href=["']([^"']*(?:\.torrent|[?&]t=download|\/download)[^"']*)["']/i);
+        if (!torrent) return "";
+        try { return new URL(decodeJackettUrl(torrent[1]), baseUrl).href; } catch (e) { return decodeJackettUrl(torrent[1]); }
+    }
+
+    function getJackettRedirectUrl(headers) {
+        let match = String(headers || "").match(/^location:\s*(.+)$/im);
+        return match ? decodeJackettUrl(match[1].trim()) : "";
+    }
+
+    function requestJackettRedirect(pageUrl) {
+        let details = { method: "GET", url: pageUrl, redirect: "manual" };
+        if (typeof GM !== "undefined" && GM.xmlHttpRequest) {
+            return GM.xmlHttpRequest(details);
+        }
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest(Object.assign({}, details, { onload: resolve, onerror: reject }));
+        });
+    }
+
+    function requestJackettPage(pageUrl) {
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({ method: "GET", url: pageUrl, onload: resolve, onerror: reject });
+        });
+    }
+
+    function resolveJackettDownloadUrl(item) {
+        let direct = get115DownloadUrl(item);
+        if (direct) return Promise.resolve(direct);
+        let pageUrl = decodeJackettUrl(item.Link || item.Guid);
+        if (!/^https?:/i.test(pageUrl)) return Promise.reject("找不到可用的 Jackett 下载链接");
+        return requestJackettRedirect(pageUrl).then(res => {
+            let redirectUrl = getJackettRedirectUrl(res.responseHeaders);
+            if (/^magnet:/i.test(redirectUrl)) return redirectUrl;
+            let finalUrl = decodeJackettUrl(res.finalUrl || redirectUrl || pageUrl);
+            let contentType = String(res.responseHeaders || "").toLowerCase();
+            if (isJackettTorrentUrl(finalUrl) || contentType.includes("application/x-bittorrent")) return finalUrl;
+            let found = extractJackettDownloadUrlFromText(res.responseText, finalUrl);
+            if (found) return found;
+            throw "找不到可用的 magnet/torrent 链接";
+        }).catch(err => {
+            let detailUrl = decodeJackettUrl(item.Guid);
+            if (!/^https?:/i.test(detailUrl)) return Promise.reject(typeof err === "string" ? err : "二次提取 Jackett 链接失败");
+            return requestJackettPage(detailUrl).then(res => {
+                let found = extractJackettDownloadUrlFromText(res.responseText, detailUrl);
+                if (found) return found;
+                throw typeof err === "string" ? err : "二次提取 Jackett 链接失败";
+            });
+        });
+    }
+
+    function sanitize115FolderName(name) {
+        return String(name || "torrent").replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 120) || "torrent";
+    }
+
+    function make115Savepath(options, title) {
+        let base = (options.baseSavepath || "Video/Jav").replace(/\/+$/, "");
+        return base + "/" + sanitize115FolderName(title);
+    }
+
+    function downloadTo115(magnetUrl, options = {}, title = "") {
+        if (!/^(magnet:|https?:\/\/)/i.test(magnetUrl || "")) {
+            return Promise.reject("找不到可给 115 使用的 magnet/torrent");
+        }
+        return get115OfflineSign().then(auth => new Promise((resolve, reject) => {
+            let postData = "url[0]=" + encodeURIComponent(magnetUrl) + "&wp_path_id=0&sign=" + encodeURIComponent(auth.sign) + "&time=" + encodeURIComponent(auth.time);
+            postData += "&savepath=" + encodeURIComponent(make115Savepath(options, title));
+            GM_xmlhttpRequest({
+                method: "POST",
+                url: "https://115.com/web/lixian/?ct=lixian&ac=add_task_urls",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Referer": "https://115.com/?ct=offline&ac=offline_new",
+                    "Origin": "https://115.com"
+                },
+                withCredentials: true,
+                data: postData,
+                onload: function(res) {
+                    try {
+                        let data = JSON.parse(res.responseText);
+                        if (res.status === 200 && data.state) {
+                            resolve();
+                        } else if (is115LoginError(data)) {
+                            open115Login();
+                            reject("请先登录 115 后重试");
+                        } else {
+                            reject(data.error_msg || data.msg || ("115 接口状态码: " + res.status));
+                        }
+                    } catch (e) {
+                        reject("115 返回解析失败");
+                    }
+                },
+                onerror: function() {
+                    reject("网络错误，无法连接 115");
+                }
+            });
+        }));
+    }
     function showBigImg(avid,elem) {
         let $selector = $(".pop-up-tag").filter(function() { return $(this).attr("name") === avid + IMG_SUFFIX; });
         if ($selector.length > 0) {
@@ -1191,22 +1370,22 @@
         var waterfallWidth = Status.get("waterfallWidth");
         var css_waterfall = `
 /* 自定义一键下载到 QB 按钮的统一样式与 Hover 态完全变色 */
-.jackett-copy-btn, .jackett-qb-btn, .native-copy-btn, .native-qb-btn {
-    background-color: #2080f0 !important;
+.jackett-copy-btn, .jackett-qb-btn, .jackett-115-btn, .native-copy-btn, .native-qb-btn, .native-115-btn {
+    background-color: #16a34a !important;
     background-image: none !important;
-    border-color: #2080f0 !important;
+    border-color: #16a34a !important;
     color: white !important;
     text-align: center !important;
     transition: background-color 0.2s !important;
 }
-.jackett-copy-btn:hover, .jackett-qb-btn:hover, .native-copy-btn:hover, .native-qb-btn:hover {
-    background-color: #1060c0 !important;
-    border-color: #1060c0 !important;
+.jackett-copy-btn:hover, .jackett-qb-btn:hover, .jackett-115-btn:hover, .native-copy-btn:hover, .native-qb-btn:hover, .native-115-btn:hover {
+    background-color: #15803d !important;
+    border-color: #15803d !important;
     color: white !important;
 }
-.jackett-copy-btn:disabled, .jackett-qb-btn:disabled, .native-copy-btn:disabled, .native-qb-btn:disabled {
-    background-color: #a0c0f0 !important;
-    border-color: #a0c0f0 !important;
+.jackett-copy-btn:disabled, .jackett-qb-btn:disabled, .jackett-115-btn:disabled, .native-copy-btn:disabled, .native-qb-btn:disabled, .native-115-btn:disabled {
+    background-color: #86efac !important;
+    border-color: #86efac !important;
     cursor: not-allowed !important;
 }
 
@@ -1390,24 +1569,29 @@
 }
 .jackett-copy-btn,
 .jackett-qb-btn,
+.jackett-115-btn,
 .native-copy-btn,
-.native-qb-btn {
+.native-qb-btn,
+.native-115-btn {
     height: 30px !important;
-    line-height: 28px !important;
-    padding: 0 10px !important;
+    line-height: 1 !important;
+    padding: 0 8px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     font-family: inherit !important;
-    font-size: 14px !important;
+    font-size: 13px !important;
     font-weight: 700 !important;
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
 }
 .jackett-copy-btn,
-.native-copy-btn {
-    border-radius: 4px !important;
-    width: 64px !important;
-}
 .jackett-qb-btn,
-.native-qb-btn {
+.jackett-115-btn,
+.native-copy-btn,
+.native-qb-btn,
+.native-115-btn {
     border-radius: 4px !important;
-    width: 90px !important;
 }
 @media (max-width: 900px) {
     .jackett-section-head { align-items: flex-start !important; flex-direction: column !important; }
@@ -1695,7 +1879,7 @@ span.svg-loading {
                                 let td = $('<td style="text-align: center; vertical-align: middle; white-space: nowrap; width: 20%;"></td>');
 
                                 // 复制按钮
-                                let copyButton = $('<button class="btn btn-xs btn-default native-copy-btn" style="margin-right: 5px;">复制</button>');
+                                let copyButton = $('<button type="button" class="btn btn-xs btn-default native-copy-btn">复制</button>');
                                 copyButton.click(function(e) {
                                     e.preventDefault();
                                     GM_setClipboard(magnetUrl);
@@ -1703,7 +1887,7 @@ span.svg-loading {
                                 });
 
                                 // 下载到qb按钮
-                                let qbButton = $('<button class="btn btn-xs btn-primary native-qb-btn">下载到qb</button>');
+                                let qbButton = $('<button type="button" class="btn btn-xs btn-primary native-qb-btn">下载到qb</button>');
                                 qbButton.click(function(e) {
                                     e.preventDefault();
                                     var btn = $(this);
@@ -1717,7 +1901,22 @@ span.svg-loading {
                                     });
                                 });
 
-                                td.append(copyButton).append(qbButton);
+                                let pan115Button = $('<button type="button" class="btn btn-xs btn-primary native-115-btn">115下载</button>');
+                                pan115Button.click(function(e) {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    var btn = $(this);
+                                    btn.text("添加中...").attr("disabled", true);
+                                    downloadTo115(magnetUrl, get115Options(), tr.find("td").eq(0).text()).then(() => {
+                                        btn.text("已添加").css("background-color", "green").css("border-color", "green");
+                                        showAlert("成功添加到 115 网盘");
+                                    }).catch(err => {
+                                        btn.text("重试").attr("disabled", false);
+                                        showAlert("添加失败: " + err);
+                                    });
+                                });
+
+                                td.append($('<div class="jackett-actions"></div>').append(copyButton).append(qbButton).append(pan115Button));
                                 tr.append(td);
                             });
                         } else {
