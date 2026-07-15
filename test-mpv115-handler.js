@@ -1,0 +1,15 @@
+const fs = require("node:fs");
+const assert = require("node:assert");
+
+const handler = fs.readFileSync("mpv115-handler.ps1", "utf8");
+const installer = fs.readFileSync("install-mpv115-handler.ps1", "utf8");
+
+assert(handler.includes("mpv115://play"));
+assert(handler.includes("https"));
+assert(handler.includes("Start-Process"));
+assert(handler.includes("--referrer=https://115.com/"));
+assert(handler.includes("C:\\Users\\mugon\\Documents\\PythonStudio\\MyMPV\\mpv.com"));
+assert(!handler.includes("Invoke-Expression"));
+assert(!handler.toLowerCase().includes("cookie"));
+assert(installer.includes("HKCU:\\Software\\Classes\\mpv115"));
+assert(installer.includes("URL Protocol"));

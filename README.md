@@ -40,6 +40,16 @@ const QB_CONFIG = {
 > 脚本支持 qBittorrent 新旧版本的 WebUI API。当检测到未登录状态时，会自动尝试进行静默登录并自动重试添加下载，体验流畅。
 > IMDb 会按页面类型覆盖默认 qB 参数：Movie -> 分类/标签 `Movie`，路径 `./Movies`；TV -> 分类/标签 `Tv`，路径 `./Tv`。
 
+## 🎬 115 视频使用 MPV 播放
+
+首次使用前，在 PowerShell 中运行：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-mpv115-handler.ps1
+```
+
+此命令仅为当前 Windows 用户注册 `mpv115://` 协议。之后在115官方视频页点击“MPV 原画”；Chrome 首次询问时选择始终允许打开外部应用。
+
 ## 📜 许可证
 
 本项目基于 [MIT](LICENSE) 许可证开源。
