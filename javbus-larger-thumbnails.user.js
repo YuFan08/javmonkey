@@ -1178,6 +1178,9 @@
         let text = el => (el.textContent || "").trim();
         let visible = el => el.offsetParent !== null;
         let findButton = label => Array.from(document.querySelectorAll("button")).find(el => visible(el) && text(el) === label);
+        let findQuality = () => Array.from(document.querySelectorAll("button")).find(el =>
+            visible(el) && /^(原画|4K|2160P?|1080P?|720P?|超清|高清|标清|流畅)$/i.test(text(el))
+        );
 
         function get115M3u8Entries() {
             return performance.getEntriesByType("resource").map(entry => entry.name).filter(name => {
@@ -1190,27 +1193,25 @@
             });
         }
 
-        async function select115Original() {
-            if (findButton("原画")) return;
-            let quality = Array.from(document.querySelectorAll("button")).find(el =>
-                visible(el) && /^(4K|超清|高清|标清|流畅)$/.test(text(el))
-            );
-            if (!quality) throw new Error("找不到原画控件");
+        async function select115Quality() {
+            let quality = findQuality();
+            if (!quality) throw new Error("找不到清晰度控件");
+            if (text(quality) === "原画") return;
             quality.click();
             for (let i = 0; i < 20; i++) {
-                let original = findButton("原画");
-                if (original) {
-                    original.click();
+                await sleep(50);
+                let option = findQuality();
+                if (option) {
+                    option.click();
                     return;
                 }
-                await sleep(50);
             }
-            throw new Error("找不到原画控件");
+            throw new Error("找不到可用清晰度");
         }
 
         async function waitFor115M3u8(before, timeout) {
             let deadline = Date.now() + timeout;
-            await sleep(400);
+            await sleep(100);
             while (Date.now() < deadline) {
                 let entries = get115M3u8Entries();
                 let fresh = entries.filter(url => !before.has(url));
@@ -1225,14 +1226,21 @@
             let video = document.querySelector("video");
             if (!video) throw new Error("找不到网页播放器");
             let entries = get115M3u8Entries();
-            let originalSelected = !!findButton("原画");
-            if (originalSelected && entries.length) return entries[entries.length - 1];
+            if (entries.length) return entries[entries.length - 1];
 
             let before = new Set(entries);
-            await select115Original();
+            await select115Quality();
             let stream = await waitFor115M3u8(before, 5000);
-            if (!stream) throw new Error("未捕获到原画地址");
+            if (!stream) throw new Error("未捕获到视频地址");
             return stream;
+        }
+
+        function make115ProtocolUrl(stream) {
+            return "mpv115://play?" + new URLSearchParams({
+                url: stream,
+                title: document.querySelector("h1")?.textContent?.trim() || new URLSearchParams(location.search).get("name") || document.title,
+                ua: navigator.userAgent
+            });
         }
 
         function mount() {
@@ -1248,8 +1256,8 @@
                 download.parentNode.insertBefore(button, download);
                 return button;
             };
-            let playButton = makeButton("mpv115-play", "MPV 原画");
-            let copyButton = makeButton("mpv115-copy", "复制直链");
+            let playButton = makeButton("mpv115-play", "MPV 播放");
+            let copyButton = makeButton("mpv115-copy", "复制 MPV 链接");
             let busy = false;
 
             async function run(button, loadingText, action) {
@@ -1267,24 +1275,20 @@
                     busy = false;
                     playButton.disabled = false;
                     copyButton.disabled = false;
-                    playButton.textContent = "MPV 原画";
-                    copyButton.textContent = "复制直链";
+                    playButton.textContent = "MPV 播放";
+                    copyButton.textContent = "复制 MPV 链接";
                 }
             }
 
             playButton.addEventListener("click", function() {
                 run(playButton, "启动中...", function(stream) {
-                    location.href = "mpv115://play?" + new URLSearchParams({
-                        url: stream,
-                        title: document.querySelector("h1")?.textContent?.trim() || document.title,
-                        ua: navigator.userAgent
-                    });
+                    location.href = make115ProtocolUrl(stream);
                 });
             });
             copyButton.addEventListener("click", function() {
                 run(copyButton, "提取中...", function(stream) {
-                    GM_setClipboard(stream);
-                    showAlert("直链已复制");
+                    GM_setClipboard(make115ProtocolUrl(stream));
+                    showAlert("MPV 链接已复制");
                 });
             });
             return true;

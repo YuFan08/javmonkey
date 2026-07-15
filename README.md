@@ -48,7 +48,9 @@ const QB_CONFIG = {
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-mpv115-handler.ps1
 ```
 
-此命令仅为当前 Windows 用户注册 `mpv115://` 协议。之后在115官方视频页点击“MPV 原画”；Chrome 首次询问时选择始终允许打开外部应用。
+此命令仅为当前 Windows 用户注册 `mpv115://` 协议并安装 MPV 剪贴板辅助脚本。之后在 115 官方视频页点击“MPV 播放”；Chrome 首次询问时选择始终允许打开外部应用。
+
+脚本只复用 115 网页播放器已经产生的 `.m3u8` 地址。`mpv115://` 本地处理器和 MPV 粘贴辅助脚本只接受 `115.com` / `115cdn.net` 域名下的 HTTPS `.m3u8` 链接。
 
 ## 📜 许可证
 
