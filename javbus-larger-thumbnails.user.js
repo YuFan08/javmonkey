@@ -16,6 +16,7 @@
 // @include      *mgstage.com/*
 // @include      *dmm.co.jp/*
 // @include      *imdb.com/*
+// @include      https://115.com/players/video/*
 // @include      /^.*(javbus|busfan|fanbus|buscdn|cdnbus|dmmsee|seedmm|busdmm|busjav)\..*$/
 // @include      /^.*(javdb)[0-9]*\..*$/
 // @include      /^.*(avmoo)\..*$/
@@ -1170,6 +1171,103 @@
         }, { passive: true });
     }
 
+    function init115MpvPlayback() {
+        if (location.host !== "115.com" || !location.pathname.startsWith("/players/video/")) return;
+
+        let sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+        let text = el => (el.textContent || "").trim();
+        let visible = el => el.offsetParent !== null;
+        let findButton = label => Array.from(document.querySelectorAll("button")).find(el => visible(el) && text(el) === label);
+
+        function get115M3u8Entries() {
+            return performance.getEntriesByType("resource").map(entry => entry.name).filter(name => {
+                try {
+                    let url = new URL(name);
+                    return url.protocol === "https:" && url.href.toLowerCase().includes(".m3u8");
+                } catch (e) {
+                    return false;
+                }
+            });
+        }
+
+        async function select115Original() {
+            if (findButton("原画")) return;
+            let quality = Array.from(document.querySelectorAll("button")).find(el =>
+                visible(el) && /^(4K|超清|高清|标清|流畅)$/.test(text(el))
+            );
+            if (!quality) throw new Error("找不到原画控件");
+            quality.click();
+            for (let i = 0; i < 20; i++) {
+                let original = findButton("原画");
+                if (original) {
+                    original.click();
+                    return;
+                }
+                await sleep(50);
+            }
+            throw new Error("找不到原画控件");
+        }
+
+        async function waitFor115M3u8(before, timeout) {
+            let deadline = Date.now() + timeout;
+            await sleep(400);
+            while (Date.now() < deadline) {
+                let entries = get115M3u8Entries();
+                let fresh = entries.filter(url => !before.has(url));
+                if (fresh.length) return fresh[fresh.length - 1];
+                await sleep(100);
+            }
+            let entries = get115M3u8Entries();
+            return entries[entries.length - 1] || "";
+        }
+
+        function mount() {
+            let download = findButton("下载");
+            if (!download || document.querySelector("#mpv115-play")) return false;
+            let button = document.createElement("button");
+            button.id = "mpv115-play";
+            button.type = "button";
+            button.className = download.className;
+            button.textContent = "MPV 原画";
+            button.style.marginRight = "8px";
+            download.parentNode.insertBefore(button, download);
+            button.addEventListener("click", async function() {
+                button.disabled = true;
+                button.textContent = "启动中...";
+                let video = document.querySelector("video");
+                try {
+                    if (!video) throw new Error("找不到网页播放器");
+                    let before = new Set(get115M3u8Entries());
+                    let playing = video.play();
+                    await select115Original();
+                    await playing;
+                    let stream = await waitFor115M3u8(before, 5000);
+                    if (!stream) throw new Error("未捕获到原画地址");
+                    location.href = "mpv115://play?" + new URLSearchParams({
+                        url: stream,
+                        title: document.querySelector("h1")?.textContent?.trim() || document.title,
+                        ua: navigator.userAgent
+                    });
+                    video.pause();
+                } catch (e) {
+                    if (video) video.pause();
+                    showAlert(e.message || String(e));
+                } finally {
+                    button.disabled = false;
+                    button.textContent = "MPV 原画";
+                }
+            });
+            return true;
+        }
+
+        if (mount()) return;
+        let observer = new MutationObserver(function() {
+            if (mount()) observer.disconnect();
+        });
+        observer.observe(document.documentElement, { childList: true, subtree: true });
+        setTimeout(() => observer.disconnect(), 15000);
+    }
+
     function pageInit() {
         for (var key in ConstCode) {
             var domainReg = ConstCode[key].domainReg;
@@ -1759,6 +1857,7 @@ span.svg-loading {
         GM_addStyle(css_waterfall);
     }
     pageInit();
+    init115MpvPlayback();
     initMgsDmmAutoPager();
 
     // 详情页 Jackett 搜索及 QB 下载一键操作
