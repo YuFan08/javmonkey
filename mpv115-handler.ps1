@@ -27,8 +27,10 @@ if (-not (Test-Path -LiteralPath $mpv -PathType Leaf)) {
     throw "MPV not found: $mpv"
 }
 
-$title = ([string]$query.title -replace '[\x00-\x1f"]', "'").Substring(0, [Math]::Min(160, ([string]$query.title).Length))
-$userAgent = ([string]$query.ua -replace '[\x00-\x1f"]', '').Substring(0, [Math]::Min(300, ([string]$query.ua).Length))
+$title = [string]$query.title -replace '[\x00-\x1f"]', "'"
+$title = $title.Substring(0, [Math]::Min(160, $title.Length))
+$userAgent = [string]$query.ua -replace '[\x00-\x1f"]', ''
+$userAgent = $userAgent.Substring(0, [Math]::Min(300, $userAgent.Length))
 
 Start-Process -FilePath $mpv -ArgumentList @(
     '--referrer=https://115.com/',

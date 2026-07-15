@@ -9,6 +9,8 @@ assert(handler.includes("https"));
 assert(handler.includes("Start-Process"));
 assert(handler.includes("--referrer=https://115.com/"));
 assert(handler.includes("C:\\Users\\mugon\\Documents\\PythonStudio\\MyMPV\\mpv.com"));
+assert(handler.includes("[Math]::Min(160, $title.Length)"));
+assert(handler.includes("[Math]::Min(300, $userAgent.Length)"));
 assert(!handler.includes("Invoke-Expression"));
 assert(!handler.toLowerCase().includes("cookie"));
 assert(installer.includes("HKCU:\\Software\\Classes\\mpv115"));
