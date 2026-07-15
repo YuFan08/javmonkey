@@ -4,7 +4,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$mpv = 'C:\Users\mugon\Documents\PythonStudio\MyMPV\mpv.com'
+$mpv = 'C:\Users\mugon\Documents\PythonStudio\MyMPV\mpv.exe'
 
 $uri = [Uri]$ProtocolUri
 if ($uri.Scheme -ne 'mpv115' -or $uri.Host -ne 'play') {
