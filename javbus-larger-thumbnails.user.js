@@ -1224,17 +1224,15 @@
         async function extract115OriginalStream() {
             let video = document.querySelector("video");
             if (!video) throw new Error("找不到网页播放器");
-            let before = new Set(get115M3u8Entries());
-            let playing = video.play();
-            try {
-                await select115Original();
-                await playing;
-                let stream = await waitFor115M3u8(before, 5000);
-                if (!stream) throw new Error("未捕获到原画地址");
-                return stream;
-            } finally {
-                video.pause();
-            }
+            let entries = get115M3u8Entries();
+            let originalSelected = !!findButton("原画");
+            if (originalSelected && entries.length) return entries[entries.length - 1];
+
+            let before = new Set(entries);
+            await select115Original();
+            let stream = await waitFor115M3u8(before, 5000);
+            if (!stream) throw new Error("未捕获到原画地址");
+            return stream;
         }
 
         function mount() {
