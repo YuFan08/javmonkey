@@ -13,3 +13,5 @@ assert(!handler.includes("Invoke-Expression"));
 assert(!handler.toLowerCase().includes("cookie"));
 assert(installer.includes("HKCU:\\Software\\Classes\\mpv115"));
 assert(installer.includes("URL Protocol"));
+assert(installer.includes("LOCALAPPDATA"), "handler should be installed outside the disposable worktree");
+assert(installer.includes("Copy-Item"), "installer should copy the handler to its stable location");
