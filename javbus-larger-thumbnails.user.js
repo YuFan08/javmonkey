@@ -1221,41 +1221,73 @@
             return entries[entries.length - 1] || "";
         }
 
+        async function extract115OriginalStream() {
+            let video = document.querySelector("video");
+            if (!video) throw new Error("找不到网页播放器");
+            let before = new Set(get115M3u8Entries());
+            let playing = video.play();
+            try {
+                await select115Original();
+                await playing;
+                let stream = await waitFor115M3u8(before, 5000);
+                if (!stream) throw new Error("未捕获到原画地址");
+                return stream;
+            } finally {
+                video.pause();
+            }
+        }
+
         function mount() {
             let download = findButton("下载");
-            if (!download || document.querySelector("#mpv115-play")) return false;
-            let button = document.createElement("button");
-            button.id = "mpv115-play";
-            button.type = "button";
-            button.className = download.className;
-            button.textContent = "MPV 原画";
-            button.style.marginRight = "8px";
-            download.parentNode.insertBefore(button, download);
-            button.addEventListener("click", async function() {
-                button.disabled = true;
-                button.textContent = "启动中...";
-                let video = document.querySelector("video");
+            if (!download || document.querySelector("#mpv115-play, #mpv115-copy")) return false;
+            let makeButton = (id, label) => {
+                let button = document.createElement("button");
+                button.id = id;
+                button.type = "button";
+                button.className = download.className;
+                button.textContent = label;
+                button.style.marginRight = "8px";
+                download.parentNode.insertBefore(button, download);
+                return button;
+            };
+            let playButton = makeButton("mpv115-play", "MPV 原画");
+            let copyButton = makeButton("mpv115-copy", "复制直链");
+            let busy = false;
+
+            async function run(button, loadingText, action) {
+                if (busy) return;
+                busy = true;
+                playButton.disabled = true;
+                copyButton.disabled = true;
+                button.textContent = loadingText;
                 try {
-                    if (!video) throw new Error("找不到网页播放器");
-                    let before = new Set(get115M3u8Entries());
-                    let playing = video.play();
-                    await select115Original();
-                    await playing;
-                    let stream = await waitFor115M3u8(before, 5000);
-                    if (!stream) throw new Error("未捕获到原画地址");
+                    let stream = await extract115OriginalStream();
+                    action(stream);
+                } catch (e) {
+                    showAlert(e.message || String(e));
+                } finally {
+                    busy = false;
+                    playButton.disabled = false;
+                    copyButton.disabled = false;
+                    playButton.textContent = "MPV 原画";
+                    copyButton.textContent = "复制直链";
+                }
+            }
+
+            playButton.addEventListener("click", function() {
+                run(playButton, "启动中...", function(stream) {
                     location.href = "mpv115://play?" + new URLSearchParams({
                         url: stream,
                         title: document.querySelector("h1")?.textContent?.trim() || document.title,
                         ua: navigator.userAgent
                     });
-                    video.pause();
-                } catch (e) {
-                    if (video) video.pause();
-                    showAlert(e.message || String(e));
-                } finally {
-                    button.disabled = false;
-                    button.textContent = "MPV 原画";
-                }
+                });
+            });
+            copyButton.addEventListener("click", function() {
+                run(copyButton, "提取中...", function(stream) {
+                    GM_setClipboard(stream);
+                    showAlert("直链已复制");
+                });
             });
             return true;
         }
