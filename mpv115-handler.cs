@@ -4,7 +4,7 @@ using System.Diagnostics;
 
 internal static class Program
 {
-    private const string Mpv = @"C:\Users\mugon\Documents\PythonStudio\MyMPV\mpv.exe";
+    private const string Mpv = @"__MPV_EXE__";
 
     [STAThread]
     private static void Main(string[] args)
